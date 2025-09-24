@@ -1,0 +1,19 @@
+# Settings to manage and configure a Firebase App Hosting backend.
+# https://firebase.google.com/docs/app-hosting/configure
+
+# Specifies the Node.js version for the runtime.
+# This ensures that the environment uses Node.js 20.
+engines:
+  node: 20
+
+runConfig:
+  # Right-size default resources; scale up later if needed.
+  cpu: 2
+  memoryMiB: 2048
+  maxInstances: 2
+  timeoutSeconds: 1800
+
+# Enable session affinity to route requests from the same client to the same
+# backend instance. This is required for the interactive terminal to work
+# across multiple instances.
+sessionAffinity: true

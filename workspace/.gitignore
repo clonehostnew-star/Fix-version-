@@ -1,0 +1,30 @@
+# Next.js
+/.next/
+/out/
+/build/
+
+# Node
+/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+
+# Firebase
+.firebase/
+firebase-debug.log
+database-debug.log
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+*.log
+.DS_Store
+Thumbs.db

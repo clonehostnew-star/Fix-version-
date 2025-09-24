@@ -1,0 +1,183 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="600" fill="url(#gradient-bg)"/>
+  
+  <!-- Header -->
+  <rect x="0" y="0" width="800" height="100" fill="url(#gradient-header)" rx="0"/>
+  <text x="400" y="60" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="32" font-weight="bold">Bot Templates Gallery</text>
+  
+  <!-- Template Grid -->
+  <g transform="translate(50, 140)">
+    <!-- E-commerce Bot Template -->
+    <rect x="0" y="0" width="220" height="180" rx="20" fill="url(#gradient-card1)" stroke="url(#gradient-stroke)" stroke-width="2"/>
+    <rect x="20" y="20" width="180" height="80" rx="10" fill="url(#gradient-ecommerce)"/>
+    <text x="110" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">🛒 E-commerce</text>
+    <text x="110" y="65" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Order Management</text>
+    <text x="110" y="80" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Payment Processing</text>
+    
+    <text x="20" y="120" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="600">Features:</text>
+    <text x="20" y="140" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Product Catalog</text>
+    <text x="20" y="155" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Shopping Cart</text>
+    <text x="20" y="170" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Order Tracking</text>
+    
+    <!-- Support Bot Template -->
+    <rect x="240" y="0" width="220" height="180" rx="20" fill="url(#gradient-card2)" stroke="url(#gradient-stroke)" stroke-width="2"/>
+    <rect x="260" y="20" width="180" height="80" rx="10" fill="url(#gradient-support)"/>
+    <text x="350" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">💬 Support</text>
+    <text x="350" y="65" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Customer Service</text>
+    <text x="350" y="80" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Ticket System</text>
+    
+    <text x="260" y="120" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="600">Features:</text>
+    <text x="260" y="140" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Live Chat</text>
+    <text x="260" y="155" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• FAQ System</text>
+    <text x="260" y="170" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Escalation</text>
+    
+    <!-- Marketing Bot Template -->
+    <rect x="480" y="0" width="220" height="180" rx="20" fill="url(#gradient-card3)" stroke="url(#gradient-stroke)" stroke-width="2"/>
+    <rect x="500" y="20" width="180" height="80" rx="10" fill="url(#gradient-marketing)"/>
+    <text x="590" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">📢 Marketing</text>
+    <text x="590" y="65" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Campaign Manager</text>
+    <text x="590" y="80" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Lead Generation</text>
+    
+    <text x="500" y="120" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="600">Features:</text>
+    <text x="500" y="140" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Auto-responders</text>
+    <text x="500" y="155" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Analytics</text>
+    <text x="500" y="170" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• A/B Testing</text>
+  </g>
+  
+  <!-- Second Row -->
+  <g transform="translate(50, 340)">
+    <!-- Booking Bot Template -->
+    <rect x="0" y="0" width="220" height="180" rx="20" fill="url(#gradient-card4)" stroke="url(#gradient-stroke)" stroke-width="2"/>
+    <rect x="20" y="20" width="180" height="80" rx="10" fill="url(#gradient-booking)"/>
+    <text x="110" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">📅 Booking</text>
+    <text x="110" y="65" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Appointment System</text>
+    <text x="110" y="80" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Calendar Sync</text>
+    
+    <text x="20" y="120" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="600">Features:</text>
+    <text x="20" y="140" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Schedule Management</text>
+    <text x="20" y="155" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Reminders</text>
+    <text x="20" y="170" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Availability Check</text>
+    
+    <!-- Analytics Bot Template -->
+    <rect x="240" y="0" width="220" height="180" rx="20" fill="url(#gradient-card5)" stroke="url(#gradient-stroke)" stroke-width="2"/>
+    <rect x="260" y="20" width="180" height="80" rx="10" fill="url(#gradient-analytics)"/>
+    <text x="350" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">📊 Analytics</text>
+    <text x="350" y="65" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Data Insights</text>
+    <text x="350" y="80" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Performance Metrics</text>
+    
+    <text x="260" y="120" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="600">Features:</text>
+    <text x="260" y="140" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Real-time Reports</text>
+    <text x="260" y="155" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Custom Dashboards</text>
+    <text x="260" y="170" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Export Data</text>
+    
+    <!-- Custom Bot Template -->
+    <rect x="480" y="0" width="220" height="180" rx="20" fill="url(#gradient-card6)" stroke="url(#gradient-stroke)" stroke-width="2"/>
+    <rect x="500" y="20" width="180" height="80" rx="10" fill="url(#gradient-custom)"/>
+    <text x="590" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">⚙️ Custom</text>
+    <text x="590" y="65" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Build Your Own</text>
+    <text x="590" y="80" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12">Full Control</text>
+    
+    <text x="500" y="120" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="600">Features:</text>
+    <text x="500" y="140" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Template Engine</text>
+    <text x="500" y="155" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• Plugin System</text>
+    <text x="500" y="170" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">• API Integration</text>
+  </g>
+  
+  <!-- Floating Elements -->
+  <circle cx="750" cy="150" r="40" fill="url(#gradient-accent)" opacity="0.1"/>
+  <circle cx="50" cy="500" r="30" fill="url(#gradient-accent)" opacity="0.1"/>
+  
+  <!-- Connection Lines -->
+  <g stroke="url(#gradient-stroke)" stroke-width="2" opacity="0.2">
+    <line x1="400" y1="100" x2="160" y2="140"/>
+    <line x1="400" y1="100" x2="350" y2="140"/>
+    <line x1="400" y1="100" x2="590" y2="140"/>
+    <line x1="400" y1="100" x2="160" y2="340"/>
+    <line x1="400" y1="100" x2="350" y2="340"/>
+    <line x1="400" y1="100" x2="590" y2="340"/>
+  </g>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="gradient-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-header" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-card1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-card2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f9ff;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-card3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fef3c7;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-card4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ecfdf5;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-card5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fdf4ff;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-card6" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fef2f2;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-ecommerce" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-support" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-marketing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-booking" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-analytics" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-custom" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e2e8f0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#cbd5e1;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

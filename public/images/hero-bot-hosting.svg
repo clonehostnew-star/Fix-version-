@@ -1,0 +1,113 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="600" fill="url(#gradient-bg)"/>
+  
+  <!-- Floating Elements -->
+  <circle cx="150" cy="100" r="60" fill="url(#gradient-blue)" opacity="0.1"/>
+  <circle cx="650" cy="80" r="40" fill="url(#gradient-green)" opacity="0.1"/>
+  <circle cx="700" cy="500" r="50" fill="url(#gradient-purple)" opacity="0.1"/>
+  
+  <!-- Main Bot Icon -->
+  <g transform="translate(300, 200)">
+    <!-- Bot Head -->
+    <rect x="0" y="0" width="200" height="200" rx="30" fill="url(#gradient-primary)" stroke="url(#gradient-stroke)" stroke-width="3"/>
+    
+    <!-- Bot Eyes -->
+    <circle cx="60" cy="80" r="20" fill="white"/>
+    <circle cx="140" cy="80" r="20" fill="white"/>
+    <circle cx="60" cy="80" r="12" fill="url(#gradient-blue)"/>
+    <circle cx="140" cy="80" r="12" fill="url(#gradient-blue)"/>
+    
+    <!-- Bot Mouth -->
+    <rect x="70" y="120" width="60" height="8" rx="4" fill="white"/>
+    
+    <!-- Bot Antenna -->
+    <line x1="100" y1="0" x2="100" y2="-30" stroke="url(#gradient-stroke)" stroke-width="4"/>
+    <circle cx="100" cy="-30" r="8" fill="url(#gradient-green)"/>
+  </g>
+  
+  <!-- WhatsApp Messages -->
+  <g transform="translate(100, 350)">
+    <!-- Message 1 -->
+    <rect x="0" y="0" width="120" height="60" rx="15" fill="url(#gradient-green)" opacity="0.9"/>
+    <text x="60" y="35" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Hello!</text>
+    
+    <!-- Message 2 -->
+    <rect x="140" y="20" width="100" height="50" rx="15" fill="url(#gradient-blue)" opacity="0.9"/>
+    <text x="190" y="50" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="11">How can I help?</text>
+  </g>
+  
+  <!-- Server Icons -->
+  <g transform="translate(500, 350)">
+    <!-- Server 1 -->
+    <rect x="0" y="0" width="80" height="60" rx="8" fill="url(#gradient-purple)" opacity="0.8"/>
+    <rect x="15" y="15" width="50" height="4" rx="2" fill="white"/>
+    <rect x="15" y="25" width="40" height="4" rx="2" fill="white"/>
+    <rect x="15" y="35" width="45" height="4" rx="2" fill="white"/>
+    
+    <!-- Server 2 -->
+    <rect x="100" y="10" width="80" height="60" rx="8" fill="url(#gradient-orange)" opacity="0.8"/>
+    <rect x="115" y="25" width="50" height="4" rx="2" fill="white"/>
+    <rect x="115" y="35" width="40" height="4" rx="2" fill="white"/>
+    <rect x="115" y="45" width="45" height="4" rx="2" fill="white"/>
+  </g>
+  
+  <!-- Code Elements -->
+  <g transform="translate(50, 450)">
+    <rect x="0" y="0" width="200" height="100" rx="10" fill="url(#gradient-dark)" opacity="0.9"/>
+    <text x="20" y="25" fill="url(#gradient-green)" font-family="monospace" font-size="12">const bot = new WhatsAppBot();</text>
+    <text x="20" y="45" fill="url(#gradient-blue)" font-family="monospace" font-size="12">bot.onMessage(msg => {</text>
+    <text x="20" y="65" fill="url(#gradient-purple)" font-family="monospace" font-size="12">  // Handle message</text>
+    <text x="20" y="85" fill="url(#gradient-blue)" font-family="monospace" font-size="12">});</text>
+  </g>
+  
+  <!-- Connection Lines -->
+  <g stroke="url(#gradient-stroke)" stroke-width="2" opacity="0.3">
+    <line x1="400" y1="300" x2="150" y2="380"/>
+    <line x1="400" y1="300" x2="580" y2="380"/>
+    <line x1="400" y1="300" x2="150" y2="500"/>
+  </g>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="gradient-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#cbd5e1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#94a3b8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

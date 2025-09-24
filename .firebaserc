@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "your-firebase-project-id-here",
+    "mk": "bible-quiz-webnew"
+  },
+  "targets": {},
+  "etags": {}
+}

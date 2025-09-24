@@ -1,0 +1,258 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 220 14% 15%; /* Dark Slate Blue */
+    --foreground: 0 0% 98%; /* Light Gray for text */
+    --card: 220 14% 20%; /* Slightly lighter slate for cards */
+    --card-foreground: 0 0% 98%;
+    --popover: 220 14% 18%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 150 60% 30%; /* A deep green for primary actions */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 150 60% 35%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 220 14% 25%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 210 40% 60%; /* Lighter blue for accents */
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 14% 30%;
+    --input: 220 14% 25%;
+    --ring: 210 40% 55%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --radius: 0.5rem;
+
+    /* Sidebar specific variables */
+    --sidebar-background: 220 14% 12%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 210 40% 50%;
+    --sidebar-primary-foreground: 150 60% 30%;
+    --sidebar-accent: 210 40% 55%;
+    --sidebar-accent-foreground: 150 60% 40%;
+    --sidebar-border: 220 14% 25%;
+    --sidebar-ring: 210 40% 55%;
+  }
+
+  .dark {
+    --background: 220 14% 15%;
+    --foreground: 0 0% 98%;
+    --card: 220 14% 20%;
+    --card-foreground: 0 0% 98%;
+    --popover: 220 14% 18%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 150 60% 30%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 150 60% 35%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 220 14% 25%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 210 40% 60%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 14% 30%;
+    --input: 220 14% 25%;
+    --ring: 210 40% 55%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    
+    --sidebar-background: 220 14% 12%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 210 40% 50%;
+    --sidebar-primary-foreground: 150 60% 30%;
+    --sidebar-accent: 210 40% 55%;
+    --sidebar-accent-foreground: 150 60% 40%;
+    --sidebar-border: 220 14% 25%;
+    --sidebar-ring: 210 40% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom Animations for WABOT TREE HOSTING */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+  }
+}
+
+@keyframes float-leaf {
+  0% {
+    transform: translateX(0px) translateY(0px) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100px) translateY(100px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes wind-line {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes float-particle {
+  0% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-100px) translateX(50px);
+    opacity: 0;
+  }
+}
+
+@keyframes loading-bar {
+  0% {
+    width: 0%;
+  }
+  50% {
+    width: 70%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes slide-banner {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes glow-sweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Animation Classes */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-leaf {
+  animation: float-leaf 8s linear infinite;
+}
+
+.animate-twinkle {
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+.animate-wind-line {
+  animation: wind-line 8s linear infinite;
+}
+
+.animate-float-particle {
+  animation: float-particle 6s linear infinite;
+}
+
+.animate-loading-bar {
+  animation: loading-bar 2s ease-in-out infinite;
+}
+
+.animate-slide-banner {
+  animation: slide-banner 20s linear infinite;
+}
+
+.animate-glow-sweep {
+  animation: glow-sweep 3s ease-in-out infinite;
+}
+
+/* Responsive Utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Tree Theme Enhancements */
+.tree-gradient {
+  background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+}
+
+.leaf-shadow {
+  filter: drop-shadow(0 4px 8px rgba(16, 185, 129, 0.3));
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+  .animate-float-leaf {
+    animation-duration: 6s;
+  }
+  
+  .animate-wind-line {
+    animation-duration: 6s;
+  }
+  
+  .animate-slide-banner {
+    animation-duration: 15s;
+  }
+}

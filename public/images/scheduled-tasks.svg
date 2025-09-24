@@ -1,0 +1,270 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="600" fill="url(#gradient-bg)"/>
+  
+  <!-- Main Container -->
+  <rect x="100" y="80" width="600" height="440" rx="20" fill="url(#gradient-container)" stroke="url(#gradient-stroke)" stroke-width="3"/>
+  
+  <!-- Header -->
+  <rect x="100" y="80" width="600" height="60" rx="20" fill="url(#gradient-header)"/>
+  <text x="400" y="120" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">⏰ Automated Task Scheduling</text>
+  
+  <!-- Calendar Interface -->
+  <g transform="translate(130, 170)">
+    <!-- Calendar Header -->
+    <rect x="0" y="0" width="560" height="50" rx="10" fill="url(#gradient-calendar-header)" stroke="url(#gradient-border)" stroke-width="1"/>
+    <text x="280" y="30" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">January 2024 - Task Schedule</text>
+    
+    <!-- Calendar Grid -->
+    <rect x="0" y="60" width="560" height="280" rx="10" fill="url(#gradient-calendar)" stroke="url(#gradient-border)" stroke-width="1"/>
+    
+    <!-- Day Headers -->
+    <g>
+      <text x="40" y="85" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Sun</text>
+      <text x="110" y="85" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Mon</text>
+      <text x="180" y="85" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Tue</text>
+      <text x="250" y="85" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Wed</text>
+      <text x="320" y="85" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Thu</text>
+      <text x="390" y="85" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Fri</text>
+      <text x="460" y="85" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Sat</text>
+    </g>
+    
+    <!-- Calendar Days with Tasks -->
+    <g>
+      <!-- Week 1 -->
+      <rect x="10" y="100" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="45" y="120" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">1</text>
+      <text x="45" y="135" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="9">New Year</text>
+      
+      <rect x="90" y="100" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="125" y="120" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">2</text>
+      
+      <rect x="170" y="100" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="205" y="120" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">3</text>
+      
+      <rect x="250" y="100" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="285" y="120" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">4</text>
+      
+      <rect x="330" y="100" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="365" y="120" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">5</text>
+      
+      <rect x="410" y="100" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="445" y="120" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">6</text>
+      
+      <rect x="490" y="100" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="525" y="120" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">7</text>
+      
+      <!-- Week 2 -->
+      <rect x="10" y="160" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="45" y="180" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">8</text>
+      
+      <rect x="90" y="160" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="125" y="180" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">9</text>
+      
+      <rect x="170" y="160" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="205" y="180" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">10</text>
+      
+      <rect x="250" y="160" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="285" y="180" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">11</text>
+      
+      <rect x="330" y="160" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="365" y="180" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">12</text>
+      
+      <rect x="410" y="160" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="445" y="180" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">13</text>
+      
+      <rect x="490" y="160" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="525" y="180" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">14</text>
+      
+      <!-- Week 3 -->
+      <rect x="10" y="220" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="45" y="240" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">15</text>
+      
+      <rect x="90" y="220" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="125" y="240" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">16</text>
+      
+      <rect x="170" y="220" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="205" y="240" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">17</text>
+      
+      <rect x="250" y="220" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="285" y="240" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">18</text>
+      
+      <rect x="330" y="220" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="365" y="240" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">19</text>
+      
+      <rect x="410" y="220" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="445" y="240" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">20</text>
+      
+      <rect x="490" y="220" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="525" y="240" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">21</text>
+      
+      <!-- Week 4 -->
+      <rect x="10" y="280" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="45" y="300" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">22</text>
+      
+      <rect x="90" y="280" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="125" y="300" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">23</text>
+      
+      <rect x="170" y="280" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="205" y="300" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">24</text>
+      
+      <rect x="250" y="280" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="285" y="300" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">25</text>
+      
+      <rect x="330" y="280" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="365" y="300" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">26</text>
+      
+      <rect x="410" y="280" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="445" y="300" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">27</text>
+      
+      <rect x="490" y="280" width="70" height="50" rx="5" fill="url(#gradient-day)" stroke="url(#gradient-border)" stroke-width="1"/>
+      <text x="525" y="300" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="14" font-weight="bold">28</text>
+    </g>
+    
+    <!-- Task Indicators -->
+    <g>
+      <!-- Daily Backup Task -->
+      <circle cx="125" cy="145" r="8" fill="url(#gradient-task1)" opacity="0.8"/>
+      <text x="125" y="149" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">B</text>
+      
+      <!-- Weekly Maintenance -->
+      <circle cx="205" cy="205" r="8" fill="url(#gradient-task2)" opacity="0.8"/>
+      <text x="205" y="209" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">M</text>
+      
+      <!-- Monthly Report -->
+      <circle cx="365" cy="265" r="8" fill="url(#gradient-task3)" opacity="0.8"/>
+      <text x="365" y="269" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">R</text>
+    </g>
+  </g>
+  
+  <!-- Task Management Panel -->
+  <g transform="translate(130, 470)">
+    <rect x="0" y="0" width="560" height="40" rx="10" fill="url(#gradient-task-panel)" stroke="url(#gradient-border)" stroke-width="1"/>
+    
+    <!-- Task Legend -->
+    <g>
+      <circle cx="30" cy="20" r="8" fill="url(#gradient-task1)" opacity="0.8"/>
+      <text x="45" y="25" text-anchor="start" fill="#1f2937" font-family="Arial, sans-serif" font-size="12">Daily Backup</text>
+      
+      <circle cx="180" cy="20" r="8" fill="url(#gradient-task2)" opacity="0.8"/>
+      <text x="195" y="25" text-anchor="start" fill="#1f2937" font-family="Arial, sans-serif" font-size="12">Weekly Maintenance</text>
+      
+      <circle cx="350" cy="20" r="8" fill="url(#gradient-task3)" opacity="0.8"/>
+      <text x="365" y="25" text-anchor="start" fill="#1f2937" font-family="Arial, sans-serif" font-size="12">Monthly Report</text>
+      
+      <text x="500" y="25" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="10">Auto-scheduled</text>
+    </g>
+  </g>
+  
+  <!-- Task Details -->
+  <g transform="translate(50, 150)">
+    <rect x="0" y="0" width="120" height="100" rx="10" fill="url(#gradient-details)" opacity="0.9"/>
+    <text x="60" y="25" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">📋 Task Types</text>
+    <text x="60" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="10">Daily</text>
+    <text x="60" y="55" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="10">Weekly</text>
+    <text x="60" y="70" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="10">Monthly</text>
+    <text x="60" y="85" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="10">Custom</text>
+  </g>
+  
+  <!-- Automation Features -->
+  <g transform="translate(650, 150)">
+    <rect x="0" y="0" width="120" height="100" rx="10" fill="url(#gradient-automation)" opacity="0.9"/>
+    <text x="60" y="25" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">🤖 Automation</text>
+    <text x="60" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="10">Cron Jobs</text>
+    <text x="60" y="55" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="10">Webhooks</text>
+    <text x="60" y="70" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="10">API Triggers</text>
+    <text x="60" y="85" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="10">Event-driven</text>
+  </g>
+  
+  <!-- Floating Elements -->
+  <circle cx="750" cy="300" r="25" fill="url(#gradient-accent)" opacity="0.1"/>
+  <circle cx="50" cy="400" r="20" fill="url(#gradient-accent)" opacity="0.1"/>
+  
+  <!-- Connection Lines -->
+  <g stroke="url(#gradient-connections)" stroke-width="2" opacity="0.4">
+    <line x1="400" y1="350" x2="400" y2="470"/>
+  </g>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="gradient-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-container" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-header" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-calendar-header" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-calendar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-day" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f1f5f9;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-task1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-task2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-task3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-task-panel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-details" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e40af;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e3a8a;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-automation" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-connections" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-border" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e5e7eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d1d5db;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#cbd5e1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#94a3b8;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="gradient-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>
