@@ -36,39 +36,27 @@ function getServerDeployments(serverId: string) {
     return serverDeployments.get(serverId)!;
 }
 
-// FIXED: Completely rewritten getAvailablePort with proper TypeScript typing
+// SIMPLIFIED: Using a simpler, more reliable port finding method
 async function getAvailablePort(startPort = 10000): Promise<number> {
-    return new Promise<number>((resolve, reject) => {
-        const server = net.createServer();
-        server.unref();
-        
-        server.on('error', (err: NodeJS.ErrnoException) => {
-            if (err.code === 'EADDRINUSE') {
-                // Port is in use, we'll handle this in the catch block
-                reject(err);
-            } else {
-                reject(err);
-            }
-        });
-        
-        server.listen(startPort, () => {
-            const address = server.address();
-            if (address && typeof address === 'object') {
-                const port = address.port;
-                server.close(() => {
-                    resolve(port);
+    for (let port = startPort; port < 65535; port++) {
+        try {
+            const isAvailable = await new Promise<boolean>((resolve) => {
+                const server = net.createServer();
+                server.unref();
+                server.on('error', () => resolve(false));
+                server.listen(port, () => {
+                    server.close(() => resolve(true));
                 });
-            } else {
-                reject(new Error('Failed to get server address'));
+            });
+            
+            if (isAvailable) {
+                return port;
             }
-        });
-    }).catch((error) => {
-        // If port is in use, try the next one
-        if (error.code === 'EADDRINUSE') {
-            return getAvailablePort(startPort + 1);
+        } catch {
+            // Continue to next port
         }
-        throw error;
-    });
+    }
+    throw new Error('No available ports found');
 }
 
 const updateState = async (serverId: string, deploymentId: string, updater: (prevState: BotDeployState) => BotDeployState) => {
@@ -102,15 +90,21 @@ const addLog = async (serverId: string, deploymentId: string, log: Omit<Deployme
     await saveDeploymentState(serverId, deploymentId, deployment.state);
 };
 
+// FIXED: Proper null checking for latestState
 export async function recoverLatestDeploymentAction(serverId: string): Promise<BotDeployState | null> {
     const deployments = getServerDeployments(serverId);
     const latestState = await loadLatestDeploymentForServer(serverId);
 
-    if (latestState && !deployments.has(latestState.deploymentId)) {
+    // FIX: Check if latestState exists and has a valid deploymentId
+    if (latestState && latestState.deploymentId && !deployments.has(latestState.deploymentId)) {
         await addLog(serverId, latestState.deploymentId, { stream: 'system', message: 'Server restarted. Recovering latest deployment state.' });
         
         const deploymentEntry = {
-            state: { ...latestState, status: 'Recovered after server restart. Re-deploy to run.', stage: 'stopped' },
+            state: { 
+                ...latestState, 
+                status: 'Recovered after server restart. Re-deploy to run.', 
+                stage: 'stopped' 
+            },
             process: null,
             botDir: null, 
             parsedPackageJson: null,
@@ -310,14 +304,7 @@ export async function deployBotAction(formData: FormData, serverName: string, se
             zip.extractAllTo(botDir, true);
             await addLog(serverId, deploymentId, { stream: 'system', message: 'Extracted ZIP file.' });
 
-            // List extracted files
-            const files = await fs.readdir(botDir);
-            await updateState(serverId, deploymentId, prev => ({ 
-                ...prev, 
-                details: { ...prev.details, fileList: files } 
-            }));
-
-            // Handle package.json - create if missing (feature from second version)
+            // Handle package.json - create if missing (from second version)
             const packageJsonPath = path.join(botDir, 'package.json');
             let parsedPackageJson: any = null;
             
@@ -404,7 +391,7 @@ export async function deployBotAction(formData: FormData, serverName: string, se
     return { deploymentId, error: null };
 }
 
-// Other actions remain unchanged...
+// Other actions...
 
 export async function stopBotAction(serverId: string, deploymentId: string): Promise<{ success: boolean; message?: string }> {
 	const deployments = getServerDeployments(serverId);
