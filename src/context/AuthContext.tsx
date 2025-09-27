@@ -4,6 +4,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { onAuthStateChanged, User, Auth, getAuth } from 'firebase/auth';
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
 import { ensureUserDataIsolation, addOrUpdateUserProfile } from '@/lib/userStorage';
 
 // Your web app's Firebase configuration
@@ -35,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // It initializes the Firebase app and then the Auth service.
     const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     const authInstance = getAuth(app);
+    getFirestore(app); // Initialize Firestore
     setAuth(authInstance);
 
     const unsubscribe = onAuthStateChanged(authInstance, (user) => {
