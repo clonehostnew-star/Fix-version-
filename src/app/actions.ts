@@ -131,6 +131,24 @@ export async function loadOlderLogsAction(serverId: string, deploymentId: string
     return deploymentState.logs.slice(startIndex, logIndex);
 }
 
+// ADDED: resetDeploymentState function from second version
+export async function resetDeploymentState(serverId: string, deploymentId: string): Promise<{ success: boolean }> {
+    const deployments = getServerDeployments(serverId);
+    const deployment = deployments.get(deploymentId);
+    if (deployment) {
+        // Clean up process if exists
+        if (deployment.process) {
+            deployment.process.kill('SIGTERM');
+        }
+        // Remove temp files
+        if (deployment.botDir) {
+            await fs.remove(deployment.botDir).catch(() => {});
+        }
+        deployments.delete(deploymentId);
+    }
+    return { success: true };
+}
+
 async function installDependencies(botDir: string, serverId: string, deploymentId: string): Promise<void> {
     const commands = [
         { cmd: ['npm', 'install'], desc: 'Installing dependencies (npm install)' },
