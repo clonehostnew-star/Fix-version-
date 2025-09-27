@@ -11,14 +11,15 @@ export async function saveDeploymentState(serverId: string, deploymentId: string
   await db.collection(COLLECTION).doc(`${serverId}__${deploymentId}`).set({
     serverId,
     deploymentId,
-    state: { ...rest, logs: [], qrLogs: [] },
+    state: rest,
     updatedAt: Date.now(),
   }, { merge: true });
 }
 
 export async function appendLogs(serverId: string, deploymentId: string, logs: DeploymentLog[]) {
   const db = getDb();
-  if (!db || logs.length === 0) return;
+  if (!db) return;
+  if (logs.length === 0) return;
   const ref = db.collection(COLLECTION).doc(`${serverId}__${deploymentId}`).collection('logs');
   const batch = db.batch();
   for (const log of logs) {
@@ -53,7 +54,9 @@ export async function loadDeploymentState(serverId: string, deploymentId: string
       logs.push({ id: String(d.id || d.ts), timestamp: new Date(d.ts).toISOString(), stream: d.stream, message: d.message });
     });
     (state as any).logs = logs;
-  } catch {}
+  } catch (e) {
+    console.error(`Error loading logs for deployment ${deploymentId}:`, e);
+  }
   return state;
 }
 
@@ -80,7 +83,9 @@ export async function loadLatestDeploymentForServer(serverId: string): Promise<B
       logs.push({ id: String(v.id || v.ts), timestamp: new Date(v.ts).toISOString(), stream: v.stream, message: v.message });
     });
     (state as any).logs = logs;
-  } catch {}
+  } catch (e) {
+    console.error(`Error loading latest deployment logs for server ${serverId}:`, e);
+  }
   return state;
 }
 
@@ -110,4 +115,3 @@ export async function deleteDeployment(serverId: string, deploymentId: string) {
   }
   await db.collection(COLLECTION).doc(key).delete().catch(() => {});
 }
-
