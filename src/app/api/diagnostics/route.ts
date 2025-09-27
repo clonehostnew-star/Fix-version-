@@ -1,31 +1,49 @@
-export async function GET() {
+import { adminAvailable } from '@/lib/firebase/admin';
+import { loadLatestDeploymentForServer } from '@/lib/persistence';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  // Expects a serverId query parameter, for example: /api/diagnostics?serverId=YOUR_SERVER_ID
+  const url = new URL(request.url);
+  const serverId = url.searchParams.get('serverId');
+
+  if (!serverId) {
+    return new NextResponse(JSON.stringify({ error: "Please provide a serverId query parameter." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+
   const node = process.version;
-  let next = null as string | null;
+  let next = null;
   try {
-    // Avoid static resolution when missing
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const req: any = (0, eval)('require');
-    next = req('next/package.json').version;
+    next = require('next/package.json').version;
   } catch {}
+
   const aiAvailable = (() => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-implied-eval
-      const resolver: any = (0, eval)('require').resolve;
-      resolver('genkit');
-      resolver('@genkit-ai/googleai');
+      require.resolve('genkit');
+      require.resolve('@genkit-ai/googleai');
       return true;
     } catch {
       return false;
     }
   })();
-  const persistence = (() => {
-    try {
-      const { adminAvailable } = require('@/lib/firebase/admin');
-      return adminAvailable();
-    } catch {
-      return false;
-    }
-  })();
-  return Response.json({ node, next, aiAvailable, persistence });
-}
 
+  let deploymentState = null;
+  let error = null;
+  if (adminAvailable()) {
+    try {
+      deploymentState = await loadLatestDeploymentForServer(serverId);
+    } catch (e: any) {
+      error = e.message;
+    }
+  }
+
+
+  return new NextResponse(JSON.stringify({
+    node,
+    next,
+    aiAvailable,
+    persistence: adminAvailable(),
+    deploymentState,
+    error,
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
