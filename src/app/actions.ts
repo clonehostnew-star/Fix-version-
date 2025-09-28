@@ -2,7 +2,7 @@
 
 import type { BotDeployState, MongoDbAnalysisResult, DeploymentLog, FileNode } from '@/lib/types';
 import { detectMongoDBConfig } from '@/ai/flows/detect-mongodb-config';
-import { saveDeploymentState, appendLogs, loadDeploymentState, loadLatestDeploymentForServer, clearLogs as clearPersistenceLogs, deleteDeployment } from '@/lib/persistence'; // ADDED: Persistence imports
+import { saveDeploymentState, appendLogs, loadDeploymentState, loadLatestDeploymentForServer, clearLogs as clearPersistenceLogs, deleteDeployment } from '@/lib/persistence';
 import AdmZip from 'adm-zip';
 import fs from 'fs-extra';
 import path from 'path';
@@ -14,7 +14,7 @@ import net from 'net';
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 const AUTO_RESTART_DELAY = 5000; // 5 seconds
 const MAX_RESTART_ATTEMPTS = 5;
-const LOG_PAGE_SIZE = 100; // ADDED: For log pagination
+const LOG_PAGE_SIZE = 100;
 
 // Server deployment store - now tracks by serverId + deploymentId
 const serverDeployments = new Map<string, Map<string, {
@@ -219,30 +219,46 @@ const addLog = async (serverId: string, deploymentId: string, log: Omit<Deployme
     await appendLogs(serverId, deploymentId, [newLog]);
 };
 
-// ENHANCED: Install dependencies for a bot with legacy peer deps as fallback
+// FIXED: Install dependencies for a bot with legacy peer deps as fallback
 async function installDependencies(botDir: string, serverId: string, deploymentId: string): Promise<void> {
-    // Verify Node version
+    // Verify Node version - FIXED: Proper async handling
     await addLog(serverId, deploymentId, { stream: 'system', message: 'Checking Node.js version...' });
-    await new Promise<void>((resolve, reject) => {
-        const proc = spawn('node', ['--version'], { cwd: botDir, shell: true, stdio: 'pipe' });
-        proc.stdout?.on('data', (data) => {
-            const version = data.toString().trim();
-            await addLog(serverId, deploymentId, { stream: 'system', message: `Using ${version}` });
-            if (!version.includes('v20.')) {
-                await addLog(serverId, deploymentId, { 
-                    stream: 'stderr', 
-                    message: 'Warning: Recommended Node.js v20 not detected' 
-                });
-            }
+    
+    try {
+        await new Promise<void>((resolve, reject) => {
+            const proc = spawn('node', ['--version'], { cwd: botDir, shell: true, stdio: 'pipe' });
+            let versionOutput = '';
+            
+            proc.stdout?.on('data', (data) => {
+                versionOutput += data.toString();
+            });
+            
+            proc.on('close', async (code) => {
+                if (code === 0) {
+                    const version = versionOutput.trim();
+                    await addLog(serverId, deploymentId, { stream: 'system', message: `Using ${version}` });
+                    if (!version.includes('v20.')) {
+                        await addLog(serverId, deploymentId, { 
+                            stream: 'stderr', 
+                            message: 'Warning: Recommended Node.js v20 not detected' 
+                        });
+                    }
+                    resolve();
+                } else {
+                    reject(new Error('Failed to get Node version'));
+                }
+            });
+            
+            proc.on('error', (err) => {
+                reject(err);
+            });
         });
-        proc.on('close', (code) => code === 0 ? resolve() : reject());
-        proc.on('error', () => reject());
-    }).catch(() => {
+    } catch {
         await addLog(serverId, deploymentId, { 
             stream: 'stderr', 
             message: 'Could not determine Node.js version' 
         });
-    });
+    }
 
     // First check if package.json exists and read it
     const packageJsonPath = path.join(botDir, 'package.json');
@@ -265,8 +281,8 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     const commands = [
         { cmd: ['npm', 'cache', 'clean', '--force'], desc: 'Cleaning npm cache', optional: true },
         { cmd: ['npm', 'install'], desc: 'Installing dependencies' },
-        { cmd: ['npm', 'install', '--legacy-peer-deps'], desc: 'Installing with legacy peer dependencies', optional: true }, // ADDED: Legacy fallback
-        { cmd: ['npm', 'ci'], desc: 'Installing dependencies (ci)', optional: true }, // ADDED: CI fallback
+        { cmd: ['npm', 'install', '--legacy-peer-deps'], desc: 'Installing with legacy peer dependencies', optional: true },
+        { cmd: ['npm', 'ci'], desc: 'Installing dependencies (ci)', optional: true },
         { cmd: ['npm', 'audit', 'fix'], desc: 'Fixing vulnerabilities', optional: true }
     ];
 
@@ -284,31 +300,33 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     let lastError: string | null = null;
     
     for (const { cmd, desc, optional } of commands) {
-        const success = await new Promise<boolean>((resolve) => {
-            addLog(serverId, deploymentId, { stream: 'system', message: `${desc}...` });
+        const success = await new Promise<boolean>(async (resolve) => {
+            await addLog(serverId, deploymentId, { stream: 'system', message: `${desc}...` });
             const proc = spawn(cmd[0], cmd.slice(1), { cwd: botDir, shell: true, stdio: 'pipe' });
             
-            proc.stdout?.on('data', (data) => 
-                addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() }));
+            proc.stdout?.on('data', async (data) => {
+                await addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() });
+            });
             
-            proc.stderr?.on('data', (data) => 
-                addLog(serverId, deploymentId, { stream: 'stderr', message: data.toString() }));
+            proc.stderr?.on('data', async (data) => {
+                await addLog(serverId, deploymentId, { stream: 'stderr', message: data.toString() });
+            });
             
-            proc.on('close', (code) => {
+            proc.on('close', async (code) => {
                 if (code === 0) {
-                    addLog(serverId, deploymentId, { stream: 'system', message: `${desc} completed successfully` });
+                    await addLog(serverId, deploymentId, { stream: 'system', message: `${desc} completed successfully` });
                     resolve(true);
                 } else {
                     const errorMsg = `${desc} failed (code ${code})`;
-                    addLog(serverId, deploymentId, { stream: 'stderr', message: errorMsg });
+                    await addLog(serverId, deploymentId, { stream: 'stderr', message: errorMsg });
                     lastError = errorMsg;
                     resolve(!!optional);
                 }
             });
             
-            proc.on('error', (err) => {
+            proc.on('error', async (err) => {
                 const errorMsg = `${desc} error: ${err.message}`;
-                addLog(serverId, deploymentId, { stream: 'stderr', message: errorMsg });
+                await addLog(serverId, deploymentId, { stream: 'stderr', message: errorMsg });
                 lastError = errorMsg;
                 resolve(!!optional);
             });
@@ -381,12 +399,11 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
                         stream: 'system', 
                         message: 'Start command failed, trying alternative...' 
                     });
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Brief delay before next attempt
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
         }
 
-        // If all commands failed
         throw new Error(lastError || 'All start commands failed');
 
     } catch (err: any) {
@@ -441,7 +458,7 @@ async function determineStartCommand(botDir: string, serverId: string, deploymen
         }
     }
 
-    // Add direct node commands for existing entry points (most common first)
+    // Add direct node commands for existing entry points
     for (const entryPoint of existingEntryPoints) {
         commands.push({
             command: 'node',
@@ -450,7 +467,7 @@ async function determineStartCommand(botDir: string, serverId: string, deploymen
         });
     }
 
-    // If no specific commands found, add fallbacks in order of likelihood
+    // If no specific commands found, add fallbacks
     if (commands.length === 0) {
         commands.push(
             { command: 'npm', args: ['start'], description: 'npm start (fallback)' },
@@ -474,7 +491,7 @@ async function tryStartCommand(
     deploymentId: string,
     deployment: any
 ): Promise<{ success: boolean; error?: string }> {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
         const proc = spawn(command, args, { 
             cwd, 
             env, 
@@ -486,77 +503,75 @@ async function tryStartCommand(
         deployment.autoRestart = true;
         deployment.restartAttempts = 0;
 
-        proc.stdout?.on('data', (data) => 
-            addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() }));
+        proc.stdout?.on('data', async (data) => {
+            await addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() });
+        });
 
-        proc.stderr?.on('data', (data) => {
+        proc.stderr?.on('data', async (data) => {
             const message = data.toString();
             // Handle missing module errors
             if (message.includes('Cannot find module')) {
                 const missingModule = message.match(/Cannot find module '([^']+)'/)?.[1];
                 if (missingModule) {
-                    addLog(serverId, deploymentId, { 
+                    await addLog(serverId, deploymentId, { 
                         stream: 'stderr', 
                         message: `CRITICAL: Missing required module: ${missingModule}` 
                     });
                 }
             }
-            // Handle file not found errors (this is what we're trying to catch)
+            // Handle file not found errors
             else if (message.includes('Cannot find module') && message.includes('.js')) {
                 const match = message.match(/Cannot find module '([^']+\.js)'/);
                 if (match) {
-                    addLog(serverId, deploymentId, { 
+                    await addLog(serverId, deploymentId, { 
                         stream: 'stderr', 
                         message: `File not found: ${match[1]}, will try alternative start command` 
                     });
-                    // This command failed due to missing file, we'll try the next one
                     proc.kill('SIGTERM');
                     resolve({ success: false, error: `File not found: ${match[1]}` });
                     return;
                 }
             }
-            addLog(serverId, deploymentId, { stream: 'stderr', message });
+            await addLog(serverId, deploymentId, { stream: 'stderr', message });
         });
 
-        proc.on('spawn', () => {
-            addLog(serverId, deploymentId, { 
+        proc.on('spawn', async () => {
+            await addLog(serverId, deploymentId, { 
                 stream: 'system', 
                 message: `Bot process started with: ${command} ${args.join(' ')}` 
             });
-            updateState(serverId, deploymentId, prev => ({ 
+            await updateState(serverId, deploymentId, prev => ({ 
                 ...prev, 
                 status: 'Bot process started successfully.', 
                 stage: 'running' 
             }));
         });
 
-        proc.on('close', (code) => {
+        proc.on('close', async (code) => {
             if (deployment) {
                 deployment.process = null;
             }
             
             if (code !== 0 && code !== null) {
-                // Command failed, but we'll try the next one
                 resolve({ success: false, error: `Process exited with code ${code}` });
             } else {
-                // Command succeeded or was terminated normally
                 resolve({ success: true });
             }
         });
         
-        proc.on('error', (err) => {
+        proc.on('error', async (err) => {
             if (deployment) {
                 deployment.process = null;
             }
             resolve({ success: false, error: err.message });
         });
 
-        // Set a timeout to check if the process is still running without errors
+        // Set a timeout to check if the process is still running
         setTimeout(() => {
-            if (proc.exitCode === null) { // Process is still running
+            if (proc.exitCode === null) {
                 resolve({ success: true });
             }
-        }, 3000); // Wait 3 seconds to see if the process stays running
+        }, 3000);
     });
 }
 
@@ -607,10 +622,8 @@ export async function completeStopBotAction(serverId: string, deploymentId: stri
 				deployment.autoRestart = false;
 				killed = deployment.process.kill('SIGTERM');
 				
-				// Wait a bit for process to terminate
 				await new Promise(resolve => setTimeout(resolve, 1000));
 				
-				// Force kill if still running
 				if (deployment.process.exitCode === null) {
 					deployment.process.kill('SIGKILL');
 				}
@@ -627,13 +640,11 @@ export async function completeStopBotAction(serverId: string, deploymentId: stri
 				console.log('Bot directory removed:', deployment.botDir);
 			} catch (error) {
 				console.error('Error removing bot directory:', error);
-				// Continue even if file cleanup fails
 			}
 		}
 
 		// Remove deployment from tracking
 		deployments.delete(deploymentId);
-		// ADDED: Persistence delete
 		await deleteDeployment(serverId, deploymentId);
 		
 		return { success: true, message: 'Bot completely stopped and removed' };
@@ -717,7 +728,6 @@ export async function deployBotAction(
         serverId
     });
 
-    // ADDED: Initial persistence save
     await saveDeploymentState(serverId, deploymentId, initialState);
 
     (async () => {
@@ -840,7 +850,6 @@ export async function deployBotAction(
                     stream: 'stderr', 
                     message: `Dependency installation warning: ${depError.message}` 
                 });
-                // Continue anyway - some bots work without dependencies
             }
 
             // MongoDB analysis
@@ -854,7 +863,6 @@ export async function deployBotAction(
                 ? await fs.readFile(envPath, 'utf-8')
                 : '';
 
-            // Ensure we have packageJsonContent for MongoDB detection
             const packageJsonContent = parsedPackageJson ? JSON.stringify(parsedPackageJson) : '{}';
 
             try {
@@ -880,7 +888,6 @@ export async function deployBotAction(
                     stream: 'stderr', 
                     message: `MongoDB analysis warning: ${mongoError.message}` 
                 });
-                // Continue without MongoDB config
             }
 
             // Start the bot
@@ -903,7 +910,6 @@ export async function deployBotAction(
                     message: '🎉 Bot deployed and running successfully!' 
                 });
                 
-                // Update server status to online
                 try {
                     const { setServerStatus } = await import('@/lib/userStorage');
                     setServerStatus('admin@whatsapp-bot.com', serverId, 'online');
@@ -948,7 +954,6 @@ const getValidatedFilePath = (serverId: string, deploymentId: string, subPath: s
     
     const targetPath = path.join(deployment.botDir, subPath);
     
-    // Security check: ensure the target path is within the bot directory
     if (!targetPath.startsWith(deployment.botDir)) {
         throw new Error('Access denied: path traversal attempt');
     }
@@ -997,7 +1002,7 @@ export async function getFileContent(serverId: string, deploymentId: string, fil
         throw new Error("Cannot read directory content");
     }
     
-    if (stats.size > 10 * 1024 * 1024) { // 10MB limit
+    if (stats.size > 10 * 1024 * 1024) {
         throw new Error("File too large to edit");
     }
     
@@ -1020,7 +1025,6 @@ export async function createNewFile(serverId: string, deploymentId: string, newP
     if (newPath.endsWith('/')) {
         await fs.ensureDir(fullPath);
     } else {
-        // Ensure parent directory exists
         await fs.ensureDir(path.dirname(fullPath));
         await fs.writeFile(fullPath, '', 'utf-8');
     }
@@ -1031,7 +1035,6 @@ export async function createNewFile(serverId: string, deploymentId: string, newP
 export async function deleteFileAction(serverId: string, deploymentId: string, filePath: string): Promise<{ success: boolean }> {
     const fullPath = getValidatedFilePath(serverId, deploymentId, filePath);
     
-    // Prevent deleting the entire bot directory
     const deployments = getServerDeployments(serverId);
     const deployment = deployments.get(deploymentId);
     if (deployment?.botDir && fullPath === deployment.botDir) {
