@@ -171,10 +171,17 @@ export function setServers(email: string | null | undefined, servers: StoredServ
 }
 
 // Per-server status
-export function setServerStatus(email: string | null | undefined, serverId: string, status: 'deploying' | 'active' | 'failed' | 'offline' | 'suspended' | 'paused') {
+export function setServerStatus(
+  email: string | null | undefined,
+  serverId: string,
+  status: 'deploying' | 'active' | 'failed' | 'offline' | 'suspended' | 'paused' | 'online'
+) {
   if (!email) return;
   const key = rawScopedKey(email, `serverStatus_${serverId}`);
-  localStorage.setItem(key, status);
+  // Normalize legacy/alias statuses
+  const normalized: 'deploying' | 'active' | 'failed' | 'offline' | 'suspended' | 'paused' =
+    status === 'online' ? 'active' : status;
+  localStorage.setItem(key, normalized);
 }
 
 export function getServerStatus(email: string | null | undefined, serverId: string): 'deploying' | 'active' | 'failed' | 'offline' | 'paused' | 'suspended' | null {
