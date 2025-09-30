@@ -1,7 +1,6 @@
 'use server';
 
 import type { BotDeployState, MongoDbAnalysisResult, DeploymentLog, FileNode } from '@/lib/types';
-import { detectMongoDBConfig } from '@/ai/flows/detect-mongodb-config';
 import AdmZip from 'adm-zip';
 import fs from 'fs-extra';
 import path from 'path';
@@ -743,6 +742,26 @@ export async function deployBotAction(
                     stream: 'system', 
                     message: 'Found existing package.json' 
                 });
+
+                // Ensure a start script exists for smoother starts on hosts
+                try {
+                    const hasStart = !!(parsedPackageJson.scripts && parsedPackageJson.scripts.start);
+                    if (!hasStart) {
+                        // Determine an entry point
+                        const candidates = ['index.js', 'app.js', 'main.js', 'bot.js', 'start.js'];
+                        let entryPoint = parsedPackageJson.main || 'index.js';
+                        for (const c of candidates) {
+                            if (await fs.pathExists(path.join(botDir, c))) { entryPoint = c; break; }
+                        }
+                        parsedPackageJson.scripts = parsedPackageJson.scripts || {};
+                        parsedPackageJson.scripts.start = `node ${entryPoint}`;
+                        await fs.writeFile(packageJsonPath, JSON.stringify(parsedPackageJson, null, 2));
+                        addLog(serverId, deploymentId, { 
+                            stream: 'system', 
+                            message: `Added missing start script to package.json (node ${entryPoint})` 
+                        });
+                    }
+                } catch {}
             }
 
             updateState(serverId, deploymentId, prev => ({ 
@@ -776,44 +795,46 @@ export async function deployBotAction(
                 // Continue anyway - some bots work without dependencies
             }
 
-            // MongoDB analysis
-            addLog(serverId, deploymentId, { 
-                stream: 'system', 
-                message: 'Analyzing MongoDB configuration...' 
-            });
-
+            // MongoDB analysis (guarded to avoid AI deps when disabled)
             const envPath = path.join(botDir, '.env');
             const envFileContent = await fs.pathExists(envPath)
                 ? await fs.readFile(envPath, 'utf-8')
                 : '';
-
-            // Ensure we have packageJsonContent for MongoDB detection
             const packageJsonContent = parsedPackageJson ? JSON.stringify(parsedPackageJson) : '{}';
-
-            try {
-                const mongoDbInfo = await detectMongoDBConfig({ packageJsonContent, envFileContent });
-                updateState(serverId, deploymentId, prev => ({ 
-                    ...prev, 
-                    mongoDbInfo 
-                }));
-                
-                if (mongoDbInfo.requiresMongoDB) {
+            if (process.env.DISABLE_AI === '1') {
+                addLog(serverId, deploymentId, { 
+                    stream: 'system', 
+                    message: 'Skipping AI-based MongoDB analysis (DISABLE_AI=1)' 
+                });
+            } else {
+                addLog(serverId, deploymentId, { 
+                    stream: 'system', 
+                    message: 'Analyzing MongoDB configuration...' 
+                });
+                try {
+                    const { detectMongoDBConfig } = await import('@/ai/flows/detect-mongodb-config');
+                    const mongoDbInfo = await detectMongoDBConfig({ packageJsonContent, envFileContent });
+                    updateState(serverId, deploymentId, prev => ({ 
+                        ...prev, 
+                        mongoDbInfo 
+                    }));
+                    if (mongoDbInfo.requiresMongoDB) {
+                        addLog(serverId, deploymentId, { 
+                            stream: 'system', 
+                            message: 'MongoDB requirement detected and configured' 
+                        });
+                    } else {
+                        addLog(serverId, deploymentId, { 
+                            stream: 'system', 
+                            message: 'No MongoDB requirement detected' 
+                        });
+                    }
+                } catch (mongoError: any) {
                     addLog(serverId, deploymentId, { 
-                        stream: 'system', 
-                        message: 'MongoDB requirement detected and configured' 
-                    });
-                } else {
-                    addLog(serverId, deploymentId, { 
-                        stream: 'system', 
-                        message: 'No MongoDB requirement detected' 
+                        stream: 'stderr', 
+                        message: `MongoDB analysis skipped/unavailable: ${mongoError.message}` 
                     });
                 }
-            } catch (mongoError: any) {
-                addLog(serverId, deploymentId, { 
-                    stream: 'stderr', 
-                    message: `MongoDB analysis warning: ${mongoError.message}` 
-                });
-                // Continue without MongoDB config
             }
 
             // Fallback: if AI is not available, still ensure core install and start run
