@@ -242,73 +242,78 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     const usePnpm = !useYarn && await fs.pathExists(path.join(botDir, 'pnpm-lock.yaml'));
     const pm = useYarn ? 'yarn' : usePnpm ? 'pnpm' : 'npm';
 
-    // Clean cache and install - essential commands with retries/fallbacks
-    const commands: Array<{ cmd: string[]; desc: string; optional?: boolean }> = [
-        { cmd: ['npm', 'cache', 'clean', '--force'], desc: 'Cleaning npm cache', optional: true },
-        ...(pm === 'npm' ? [
-          { cmd: ['npm', 'ci'], desc: 'Installing dependencies (npm ci)' },
-          { cmd: ['npm', 'install'], desc: 'Installing dependencies (npm install)' },
-          { cmd: ['npm', 'install', '--legacy-peer-deps'], desc: 'Installing dependencies with legacy peer deps', optional: true },
-          { cmd: ['npm', 'rebuild'], desc: 'Rebuilding native modules', optional: true },
-        ] : pm === 'yarn' ? [
-          { cmd: ['yarn', 'install', '--frozen-lockfile', '--check-files'], desc: 'Installing dependencies (yarn)' },
-          { cmd: ['yarn', 'rebuild'], desc: 'Rebuilding native modules', optional: true },
-        ] : [
-          { cmd: ['pnpm', 'install', '--frozen-lockfile'], desc: 'Installing dependencies (pnpm)' },
-          { cmd: ['pnpm', 'rebuild', '-r'], desc: 'Rebuilding native modules', optional: true },
-        ]),
-        { cmd: ['npm', 'audit', 'fix'], desc: 'Fixing vulnerabilities', optional: true }
-    ];
-
-    // Add build command only if the script exists
-    if (hasBuildScript) {
-        commands.push({ cmd: ['npm', 'run', 'build'], desc: 'Building project', optional: false });
-    } else {
-        addLog(serverId, deploymentId, { 
-            stream: 'system', 
-            message: 'Skipping build - no build script found in package.json' 
-        });
-    }
-
-    // Execute all commands
-    for (const { cmd, desc, optional } of commands) {
-        const success = await new Promise<boolean>((resolve) => {
+    // Helper to run a command and log output
+    async function runCmd(desc: string, argv: string[], opts?: { optional?: boolean }): Promise<boolean> {
+        return await new Promise<boolean>((resolve) => {
             addLog(serverId, deploymentId, { stream: 'system', message: `${desc}...` });
-            const proc = spawn(cmd[0], cmd.slice(1), { cwd: botDir, shell: true, stdio: 'pipe', env: {
-                ...process.env,
-                CI: '1',
-                npm_config_loglevel: 'error',
-                npm_config_timeout: '600000',
-                npm_config_fetch_retries: '5',
-                npm_config_fetch_retry_maxtimeout: '120000',
-                npm_config_fetch_retry_mintimeout: '20000',
-              } });
-            
-            proc.stdout?.on('data', (data) => 
-                addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() }));
-            
-            proc.stderr?.on('data', (data) => 
-                addLog(serverId, deploymentId, { stream: 'stderr', message: data.toString() }));
-            
+            const proc = spawn(argv[0], argv.slice(1), {
+                cwd: botDir,
+                shell: true,
+                stdio: 'pipe',
+                env: {
+                    ...process.env,
+                    CI: '1',
+                    npm_config_loglevel: 'error',
+                    npm_config_timeout: '600000',
+                    npm_config_fetch_retries: '5',
+                    npm_config_fetch_retry_maxtimeout: '120000',
+                    npm_config_fetch_retry_mintimeout: '20000',
+                },
+            });
+            proc.stdout?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stdout', message: d.toString() }));
+            proc.stderr?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stderr', message: d.toString() }));
             proc.on('close', (code) => {
                 if (code === 0) {
                     addLog(serverId, deploymentId, { stream: 'system', message: `${desc} completed successfully` });
                     resolve(true);
                 } else {
                     addLog(serverId, deploymentId, { stream: 'stderr', message: `${desc} failed (code ${code})` });
-                    resolve(!!optional);
+                    resolve(!!opts?.optional);
                 }
             });
-            
             proc.on('error', (err) => {
                 addLog(serverId, deploymentId, { stream: 'stderr', message: `${desc} error: ${err.message}` });
-                resolve(!!optional);
+                resolve(!!opts?.optional);
             });
         });
+    }
 
-        if (!success && !optional) {
-            throw new Error(`${desc} failed`);
-        }
+    // Clean cache (best-effort)
+    if (pm === 'npm') await runCmd('Cleaning npm cache', ['npm', 'cache', 'clean', '--force'], { optional: true });
+
+    // Install with robust fallbacks
+    let installOk = false;
+    if (pm === 'npm') {
+        installOk = await runCmd('Installing dependencies (npm ci)', ['npm', 'ci']);
+        if (!installOk) installOk = await runCmd('Installing dependencies (npm install)', ['npm', 'install']);
+        if (!installOk) installOk = await runCmd('Installing with legacy peer deps', ['npm', 'install', '--legacy-peer-deps']);
+        if (!installOk) installOk = await runCmd('Installing with force + legacy peer deps', ['npm', 'install', '--force', '--legacy-peer-deps']);
+        // Rebuild best-effort
+        await runCmd('Rebuilding native modules', ['npm', 'rebuild'], { optional: true });
+    } else if (pm === 'yarn') {
+        installOk = await runCmd('Installing dependencies (yarn)', ['yarn', 'install', '--frozen-lockfile', '--check-files']);
+        if (!installOk) installOk = await runCmd('Installing dependencies (yarn, relaxed)', ['yarn', 'install', '--check-files']);
+        await runCmd('Rebuilding native modules', ['yarn', 'rebuild'], { optional: true });
+    } else {
+        // pnpm
+        installOk = await runCmd('Installing dependencies (pnpm)', ['pnpm', 'install', '--frozen-lockfile']);
+        if (!installOk) installOk = await runCmd('Installing dependencies (pnpm relaxed)', ['pnpm', 'install', '--no-strict-peer-dependencies']);
+        await runCmd('Rebuilding native modules', ['pnpm', 'rebuild', '-r'], { optional: true });
+    }
+
+    if (!installOk) {
+        throw new Error('Dependency installation failed after fallbacks');
+    }
+
+    // Optional: audit fix (best-effort, npm only)
+    if (pm === 'npm') await runCmd('Fixing vulnerabilities', ['npm', 'audit', 'fix'], { optional: true });
+
+    // Build only if script exists
+    if (hasBuildScript) {
+        const built = await runCmd('Building project', ['npm', 'run', 'build']);
+        if (!built) throw new Error('Build failed');
+    } else {
+        addLog(serverId, deploymentId, { stream: 'system', message: 'Skipping build - no build script found in package.json' });
     }
 
     // Run postinstall/prepare if present
