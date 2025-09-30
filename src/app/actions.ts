@@ -281,23 +281,18 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     // Clean cache (best-effort)
     if (pm === 'npm') await runCmd('Cleaning npm cache', ['npm', 'cache', 'clean', '--force'], { optional: true });
 
-    // Install with robust fallbacks
+    // Install with simple, predictable fallbacks
     let installOk = false;
     if (pm === 'npm') {
         installOk = await runCmd('Installing dependencies (npm ci)', ['npm', 'ci']);
-        if (!installOk) installOk = await runCmd('Installing dependencies (npm install)', ['npm', 'install']);
         if (!installOk) installOk = await runCmd('Installing with legacy peer deps', ['npm', 'install', '--legacy-peer-deps']);
-        if (!installOk) installOk = await runCmd('Installing with force + legacy peer deps', ['npm', 'install', '--force', '--legacy-peer-deps']);
-        // Rebuild best-effort
         await runCmd('Rebuilding native modules', ['npm', 'rebuild'], { optional: true });
     } else if (pm === 'yarn') {
         installOk = await runCmd('Installing dependencies (yarn)', ['yarn', 'install', '--frozen-lockfile', '--check-files']);
-        if (!installOk) installOk = await runCmd('Installing dependencies (yarn, relaxed)', ['yarn', 'install', '--check-files']);
         await runCmd('Rebuilding native modules', ['yarn', 'rebuild'], { optional: true });
     } else {
         // pnpm
         installOk = await runCmd('Installing dependencies (pnpm)', ['pnpm', 'install', '--frozen-lockfile']);
-        if (!installOk) installOk = await runCmd('Installing dependencies (pnpm relaxed)', ['pnpm', 'install', '--no-strict-peer-dependencies']);
         await runCmd('Rebuilding native modules', ['pnpm', 'rebuild', '-r'], { optional: true });
     }
 
