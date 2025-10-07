@@ -802,12 +802,27 @@ export async function deployBotAction(
 
             addLog(serverId, deploymentId, { 
                 stream: 'system', 
-                message: 'Extracting bot files...' 
+                message: 'Extracting bot files (robust mode)...' 
             });
 
-            // Extract zip file
-            const zip = new AdmZip(Buffer.from(await file.arrayBuffer()));
-            zip.extractAllTo(botDir, true);
+            // Write uploaded buffer to a temp .zip and extract from disk (more reliable in prod)
+            const uploadBuffer = Buffer.from(await file.arrayBuffer());
+            const zipPath = path.join(os.tmpdir(), `upload-${deploymentId}.zip`);
+            await fs.writeFile(zipPath, uploadBuffer);
+            addLog(serverId, deploymentId, { stream: 'system', message: `ZIP received: ${(uploadBuffer.byteLength/1024/1024).toFixed(2)} MB` });
+
+            try {
+                const zip = new AdmZip(zipPath);
+                const entries = zip.getEntries() || [];
+                addLog(serverId, deploymentId, { stream: 'system', message: `ZIP entries detected: ${entries.length}` });
+                zip.extractAllTo(botDir, true);
+            } catch (e: any) {
+                addLog(serverId, deploymentId, { stream: 'stderr', message: `Primary extraction failed: ${e?.message || e}` });
+                throw e;
+            } finally {
+                // Best-effort cleanup of temp zip
+                await fs.remove(zipPath).catch(() => {});
+            }
 
             // List extracted files
             const files = await fs.readdir(botDir);
