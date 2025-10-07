@@ -369,29 +369,133 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
             addLog(serverId, deploymentId, { stream: 'system', message: 'MONGODB_URI set for bot process.' });
         }
 
-        const npmStart = spawn('npm', ['start'], { 
-            cwd: deployment.botDir, 
-            env: botEnv, 
-            shell: true, 
-            stdio: 'pipe' 
+        // Fallback-aware launcher: try `npm start`, fall back to `node <entry>` if npm is unavailable
+        let attemptedFallback = false;
+        let sawNpmNotFound = false;
+
+        const startNodeFallback = async () => {
+            if (attemptedFallback) return;
+            attemptedFallback = true;
+            try {
+                // Determine entry point from parsed package.json or common candidates
+                const candidates = ['index.js', 'app.js', 'main.js', 'bot.js', 'start.js'];
+                let entryPoint = (deployment.parsedPackageJson?.main as string) || '';
+                if (!entryPoint || !(await fs.pathExists(path.join(deployment.botDir!, entryPoint)))) {
+                    entryPoint = '';
+                    for (const c of candidates) {
+                        if (await fs.pathExists(path.join(deployment.botDir!, c))) { entryPoint = c; break; }
+                    }
+                }
+                if (!entryPoint) {
+                    throw new Error('Could not determine bot entry point for fallback.');
+                }
+                addLog(serverId, deploymentId, { stream: 'system', message: `Falling back to direct node start: node ${entryPoint}` });
+                const nodeProc = spawn('node', [entryPoint], {
+                    cwd: deployment.botDir!,
+                    env: botEnv,
+                    shell: true,
+                    stdio: 'pipe',
+                });
+
+                deployment.process = nodeProc;
+
+                nodeProc.stdout?.on('data', (data) =>
+                    addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() })
+                );
+                nodeProc.stderr?.on('data', (data) => {
+                    const message = data.toString();
+                    addLog(serverId, deploymentId, { stream: 'stderr', message });
+                });
+                nodeProc.on('spawn', () => {
+                    updateState(serverId, deploymentId, prev => ({
+                        ...prev,
+                        status: 'Bot process started successfully (node fallback).',
+                        stage: 'running'
+                    }));
+                    const localDeployments = getServerDeployments(serverId);
+                    const localDeployment = localDeployments.get(deploymentId);
+                    if (localDeployment) saveDeploymentState(serverId, deploymentId, localDeployment.state).catch(() => {});
+                });
+                nodeProc.on('close', (code) => {
+                    const localDeployments = getServerDeployments(serverId);
+                    const localDeployment = localDeployments.get(deploymentId);
+                    if (localDeployment) {
+                        localDeployment.process = null;
+                    }
+                    if (code !== 0 && code !== null) {
+                        updateState(serverId, deploymentId, prev => ({ ...prev,
+                            error: `Bot process exited with code ${code}.`,
+                            status: `Bot process exited unexpectedly (code ${code}).`,
+                            stage: 'error',
+                            isDeploying: false
+                        }));
+                    } else if (code === 0) {
+                        updateState(serverId, deploymentId, prev => ({ ...prev,
+                            status: 'Bot process exited cleanly.',
+                            stage: 'finished',
+                            isDeploying: false
+                        }));
+                    } else {
+                        updateState(serverId, deploymentId, prev => ({ ...prev,
+                            status: 'Bot process stopped.',
+                            stage: 'finished',
+                            isDeploying: false
+                        }));
+                    }
+                    const ld2 = getServerDeployments(serverId).get(deploymentId);
+                    if (ld2) saveDeploymentState(serverId, deploymentId, ld2.state).catch(() => {});
+                });
+                nodeProc.on('error', (err) => {
+                    const localDeployments = getServerDeployments(serverId);
+                    const localDeployment = localDeployments.get(deploymentId);
+                    if (localDeployment) {
+                        localDeployment.process = null;
+                    }
+                    updateState(serverId, deploymentId, prev => ({ ...prev,
+                        error: `Failed to start bot with node: ${err.message}`,
+                        status: 'Failed to start bot.',
+                        stage: 'error',
+                        isDeploying: false
+                    }));
+                });
+            } catch (e: any) {
+                updateState(serverId, deploymentId, prev => ({ ...prev,
+                    error: e?.message || 'Failed to start bot (fallback).',
+                    status: 'Failed to start bot.',
+                    stage: 'error',
+                    isDeploying: false
+                }));
+            }
+        };
+
+        const npmStart = spawn('npm', ['start'], {
+            cwd: deployment.botDir,
+            env: botEnv,
+            shell: true,
+            stdio: 'pipe'
         });
 
         deployment.process = npmStart;
         deployment.autoRestart = true;
         deployment.restartAttempts = 0;
 
-        npmStart.stdout?.on('data', (data) => 
-            addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() }));
+        npmStart.stdout?.on('data', (data) =>
+            addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() })
+        );
 
         npmStart.stderr?.on('data', async (data) => {
             const message = data.toString();
+            // Detect environments where npm is unavailable
+            if (/npm(\s*:\s*not\s*found)|command\s+not\s+found\s*:.*npm/i.test(message)) {
+                sawNpmNotFound = true;
+            }
             // Handle missing module errors
             if (message.includes('Cannot find module')) {
                 const missingModule = message.match(/Cannot find module '([^']+)'/)?.[1];
                 if (missingModule) {
-                    addLog(serverId, deploymentId, { 
-                        stream: 'stderr', 
-                        message: `CRITICAL: Missing required module: ${missingModule}` 
+                    addLog(serverId, deploymentId, {
+                        stream: 'stderr',
+                        message: `CRITICAL: Missing required module: ${missingModule}`
                     });
                     const deployments = getServerDeployments(serverId);
                     const deployment = deployments.get(deploymentId);
@@ -402,7 +506,7 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
                                 const proc = spawn('npm', ['install', `${missingModule}`], { cwd: deployment.botDir!, shell: true, stdio: 'pipe' });
                                 proc.stdout?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stdout', message: d.toString() }));
                                 proc.stderr?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stderr', message: d.toString() }));
-                                proc.on('close', (code) => resolve());
+                                proc.on('close', () => resolve());
                                 proc.on('error', () => resolve());
                             });
                             addLog(serverId, deploymentId, { stream: 'system', message: `Auto-install completed. Restarting bot...` });
@@ -427,19 +531,19 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
             }
             // Handle port conflicts
             else if (message.includes('EADDRINUSE')) {
-                addLog(serverId, deploymentId, { 
-                    stream: 'stderr', 
-                    message: `Port conflict detected. Trying to resolve automatically...` 
+                addLog(serverId, deploymentId, {
+                    stream: 'stderr',
+                    message: `Port conflict detected. Trying to resolve automatically...`
                 });
             }
             addLog(serverId, deploymentId, { stream: 'stderr', message });
         });
 
         npmStart.on('spawn', () => {
-            updateState(serverId, deploymentId, prev => ({ 
-                ...prev, 
-                status: 'Bot process started successfully.', 
-                stage: 'running' 
+            updateState(serverId, deploymentId, prev => ({
+                ...prev,
+                status: 'Bot process started successfully.',
+                stage: 'running'
             }));
             // Persist when process starts
             const localDeployments = getServerDeployments(serverId);
@@ -447,29 +551,35 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
             if (localDeployment) saveDeploymentState(serverId, deploymentId, localDeployment.state).catch(() => {});
         });
 
-        npmStart.on('close', (code) => {
+        npmStart.on('close', async (code) => {
+            // If npm is unavailable, fallback to node
+            if (!attemptedFallback && (code === 127 || sawNpmNotFound)) {
+                addLog(serverId, deploymentId, { stream: 'system', message: 'npm not available in production runtime; falling back to node.' });
+                return startNodeFallback();
+            }
+
             const localDeployments = getServerDeployments(serverId);
             const localDeployment = localDeployments.get(deploymentId);
             if (localDeployment) {
                 localDeployment.process = null;
             }
             if (code !== 0 && code !== null) {
-                updateState(serverId, deploymentId, prev => ({...prev, 
-                    error: `Bot process exited with code ${code}.`, 
-                    status: `Bot process exited unexpectedly (code ${code}).`, 
-                    stage: 'error', 
+                updateState(serverId, deploymentId, prev => ({...prev,
+                    error: `Bot process exited with code ${code}.`,
+                    status: `Bot process exited unexpectedly (code ${code}).`,
+                    stage: 'error',
                     isDeploying: false
                 }));
             } else if (code === 0) {
-                updateState(serverId, deploymentId, prev => ({...prev, 
-                    status: 'Bot process exited cleanly.', 
-                    stage: 'finished', 
+                updateState(serverId, deploymentId, prev => ({...prev,
+                    status: 'Bot process exited cleanly.',
+                    stage: 'finished',
                     isDeploying: false
                 }));
             } else {
-                updateState(serverId, deploymentId, prev => ({...prev, 
-                    status: 'Bot process stopped.', 
-                    stage: 'finished', 
+                updateState(serverId, deploymentId, prev => ({...prev,
+                    status: 'Bot process stopped.',
+                    stage: 'finished',
                     isDeploying: false
                 }));
             }
@@ -477,15 +587,20 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
             if (ld2) saveDeploymentState(serverId, deploymentId, ld2.state).catch(() => {});
         });
         
-        npmStart.on('error', (err) => {
+        npmStart.on('error', async (err) => {
+            // ENOENT typically means npm is not installed/available
+            if (!attemptedFallback && (err as any)?.code === 'ENOENT') {
+                addLog(serverId, deploymentId, { stream: 'system', message: 'npm command not found; using node fallback.' });
+                return startNodeFallback();
+            }
             if (deployment) {
                 deployment.process = null;
             }
-            updateState(serverId, deploymentId, prev => ({...prev, 
-                error: `Failed to start bot process: ${err.message}`, 
-                status: 'Failed to start bot.', 
-                stage: 'error', 
-                isDeploying: false 
+            updateState(serverId, deploymentId, prev => ({...prev,
+                error: `Failed to start bot process: ${err.message}`,
+                status: 'Failed to start bot.',
+                stage: 'error',
+                isDeploying: false
             }));
         });
 

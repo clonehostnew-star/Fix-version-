@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Ensure large uploads for Server Actions (bot ZIP files)
+  // Defaults are small in production; increase to avoid truncation
+  serverActionsBodySizeLimit: '64mb',
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '64mb',
+    },
+  },
   typescript: {
     // Re-enable build errors by default; allow opt-out for constrained hosts
     ignoreBuildErrors: process.env.DISABLE_BUILD_CHECKS === '1',
