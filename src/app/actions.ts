@@ -252,6 +252,8 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
                 stdio: 'pipe',
                 env: {
                     ...process.env,
+                    // Ensure devDependencies are installed for bots that rely on ts/tsx tooling
+                    npm_config_production: 'false',
                     CI: '1',
                     npm_config_loglevel: 'error',
                     npm_config_timeout: '600000',
