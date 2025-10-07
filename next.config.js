@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Ensure large uploads for Server Actions (bot ZIP files)
-  // Defaults are small in production; increase to avoid truncation
-  serverActionsBodySizeLimit: '64mb',
   experimental: {
     serverActions: {
       bodySizeLimit: '64mb',
