@@ -824,8 +824,48 @@ export async function deployBotAction(
                 await fs.remove(zipPath).catch(() => {});
             }
 
+            // Normalize extraction root: many ZIPs contain a single top-level folder
+            async function findPackageJsonRoot(dir: string): Promise<string> {
+                const directPkg = await fs.pathExists(path.join(dir, 'package.json'));
+                if (directPkg) return dir;
+                const children = await fs.readdir(dir);
+                const visible = children.filter((n) => n !== '__MACOSX' && !n.startsWith('.'));
+                // Prefer a child containing package.json
+                for (const name of visible) {
+                    const childPath = path.join(dir, name);
+                    try {
+                        const st = await fs.stat(childPath);
+                        if (st.isDirectory()) {
+                            if (await fs.pathExists(path.join(childPath, 'package.json'))) {
+                                return childPath;
+                            }
+                        }
+                    } catch {}
+                }
+                // If only one visible directory, assume that's the root
+                const dirCandidates: string[] = [];
+                for (const name of visible) {
+                    const childPath = path.join(dir, name);
+                    try {
+                        const st = await fs.stat(childPath);
+                        if (st.isDirectory()) dirCandidates.push(childPath);
+                    } catch {}
+                }
+                if (dirCandidates.length === 1) return dirCandidates[0];
+                return dir; // fallback: keep original
+            }
+
+            const normalizedRoot = await findPackageJsonRoot(botDir);
+            if (normalizedRoot !== botDir) {
+                addLog(serverId, deploymentId, { stream: 'system', message: `Normalized ZIP root: ${path.basename(normalizedRoot)}` });
+                const deployments2 = getServerDeployments(serverId);
+                const dep2 = deployments2.get(deploymentId);
+                if (dep2) dep2.botDir = normalizedRoot;
+            }
+
             // List extracted files
-            const files = await fs.readdir(botDir);
+            const listRoot = (normalizedRoot !== botDir) ? normalizedRoot : botDir;
+            const files = await fs.readdir(listRoot);
             updateState(serverId, deploymentId, prev => ({ 
                 ...prev, 
                 details: { ...prev.details, fileList: files } 
