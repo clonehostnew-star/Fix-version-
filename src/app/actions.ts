@@ -854,7 +854,7 @@ export async function deployBotAction(
             }
 
             // Normalize extraction root: many ZIPs contain a single top-level folder
-            async function findPackageJsonRoot(dir: string): Promise<string> {
+            const findPackageJsonRoot = async (dir: string): Promise<string> => {
                 const directPkg = await fs.pathExists(path.join(dir, 'package.json'));
                 if (directPkg) return dir;
                 const children = await fs.readdir(dir);
