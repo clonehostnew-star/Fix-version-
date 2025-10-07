@@ -242,29 +242,53 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     const usePnpm = !useYarn && await fs.pathExists(path.join(botDir, 'pnpm-lock.yaml'));
     const pm = useYarn ? 'yarn' : usePnpm ? 'pnpm' : 'npm';
 
-    // Helper to run a command and log output
-    async function runCmd(desc: string, argv: string[], opts?: { optional?: boolean }): Promise<boolean> {
+    // Helper to run a command with timeout and heartbeats to avoid hanging
+    async function runCmd(
+        desc: string,
+        argv: string[],
+        opts?: { optional?: boolean; timeoutMs?: number }
+    ): Promise<boolean> {
         return await new Promise<boolean>((resolve) => {
             addLog(serverId, deploymentId, { stream: 'system', message: `${desc}...` });
+            const timeoutMs = opts?.timeoutMs ?? 8 * 60 * 1000; // default 8 minutes
             const proc = spawn(argv[0], argv.slice(1), {
                 cwd: botDir,
                 shell: true,
                 stdio: 'pipe',
                 env: {
                     ...process.env,
-                    // Ensure devDependencies are installed for bots that rely on ts/tsx tooling
                     npm_config_production: 'false',
                     CI: '1',
                     npm_config_loglevel: 'error',
-                    npm_config_timeout: '600000',
+                    npm_config_timeout: String(timeoutMs),
                     npm_config_fetch_retries: '5',
                     npm_config_fetch_retry_maxtimeout: '120000',
                     npm_config_fetch_retry_mintimeout: '20000',
+                    npm_config_audit: 'false',
+                    npm_config_fund: 'false',
+                    npm_config_progress: 'false',
+                    npm_config_foreground_scripts: 'true',
+                    npm_config_unsafe_perm: 'true',
                 },
             });
+
+            const heartbeat = setInterval(() => {
+                addLog(serverId, deploymentId, { stream: 'system', message: `${desc} is still running...` });
+            }, 15000);
+
+            const killer = setTimeout(() => {
+                try {
+                    addLog(serverId, deploymentId, { stream: 'stderr', message: `${desc} timed out after ${(timeoutMs/60000).toFixed(1)}m; terminating...` });
+                    proc.kill('SIGTERM');
+                    setTimeout(() => proc.kill('SIGKILL'), 1500);
+                } catch {}
+            }, timeoutMs + 5000);
+
             proc.stdout?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stdout', message: d.toString() }));
             proc.stderr?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stderr', message: d.toString() }));
             proc.on('close', (code) => {
+                clearInterval(heartbeat);
+                clearTimeout(killer);
                 if (code === 0) {
                     addLog(serverId, deploymentId, { stream: 'system', message: `${desc} completed successfully` });
                     resolve(true);
@@ -274,6 +298,8 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
                 }
             });
             proc.on('error', (err) => {
+                clearInterval(heartbeat);
+                clearTimeout(killer);
                 addLog(serverId, deploymentId, { stream: 'stderr', message: `${desc} error: ${err.message}` });
                 resolve(!!opts?.optional);
             });
@@ -286,16 +312,19 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     // Install with simple, predictable fallbacks
     let installOk = false;
     if (pm === 'npm') {
-        installOk = await runCmd('Installing dependencies (npm ci)', ['npm', 'ci']);
-        if (!installOk) installOk = await runCmd('Installing with legacy peer deps', ['npm', 'install', '--legacy-peer-deps']);
-        await runCmd('Rebuilding native modules', ['npm', 'rebuild'], { optional: true });
+        installOk = await runCmd('Installing dependencies (npm ci)', ['npm', 'ci', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 10*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing with legacy peer deps', ['npm', 'install', '--legacy-peer-deps', '--no-audit', '--no-fund', '--progress=false', '--omit=optional'], { timeoutMs: 10*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing (reduced, no-optional)', ['npm', 'install', '--no-optional', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 10*60*1000 });
+        await runCmd('Rebuilding native modules', ['npm', 'rebuild'], { optional: true, timeoutMs: 5*60*1000 });
     } else if (pm === 'yarn') {
-        installOk = await runCmd('Installing dependencies (yarn)', ['yarn', 'install', '--frozen-lockfile', '--check-files']);
-        await runCmd('Rebuilding native modules', ['yarn', 'rebuild'], { optional: true });
+        installOk = await runCmd('Installing dependencies (yarn)', ['yarn', 'install', '--frozen-lockfile', '--check-files', '--non-interactive', '--network-timeout', '600000'], { timeoutMs: 10*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing (yarn fallback)', ['yarn', 'install', '--check-files', '--non-interactive', '--network-timeout', '600000'], { timeoutMs: 10*60*1000 });
+        await runCmd('Rebuilding native modules', ['yarn', 'rebuild'], { optional: true, timeoutMs: 5*60*1000 });
     } else {
         // pnpm
-        installOk = await runCmd('Installing dependencies (pnpm)', ['pnpm', 'install', '--frozen-lockfile']);
-        await runCmd('Rebuilding native modules', ['pnpm', 'rebuild', '-r'], { optional: true });
+        installOk = await runCmd('Installing dependencies (pnpm)', ['pnpm', 'install', '--frozen-lockfile', '--reporter', 'silent'], { timeoutMs: 10*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing (pnpm fallback)', ['pnpm', 'install', '--no-optional', '--reporter', 'silent'], { timeoutMs: 10*60*1000 });
+        await runCmd('Rebuilding native modules', ['pnpm', 'rebuild', '-r'], { optional: true, timeoutMs: 5*60*1000 });
     }
 
     if (!installOk) {
