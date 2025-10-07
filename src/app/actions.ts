@@ -560,6 +560,12 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
                 return startNodeFallback();
             }
 
+            // If npm start exited with error, try node fallback once
+            if (!attemptedFallback && code && code !== 0) {
+                addLog(serverId, deploymentId, { stream: 'system', message: `npm start exited with code ${code}. Trying node fallback...` });
+                return startNodeFallback();
+            }
+
             const localDeployments = getServerDeployments(serverId);
             const localDeployment = localDeployments.get(deploymentId);
             if (localDeployment) {
