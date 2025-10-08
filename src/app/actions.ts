@@ -9,6 +9,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import { randomUUID } from 'crypto';
 import net from 'net';
 import { saveDeploymentState, appendLogs, loadDeploymentState, loadLatestDeploymentForServer, clearLogs, deleteDeployment } from '@/lib/persistence';
+import { publishDeploymentEvent } from '@/lib/eventBus';
 
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
@@ -168,6 +169,7 @@ const updateState = (serverId: string, deploymentId: string, updater: (prevState
     const deployment = deployments.get(deploymentId);
     if (deployment) {
         deployment.state = updater(deployment.state);
+        publishDeploymentEvent(serverId, deploymentId, { type: 'state', payload: deployment.state as any });
     }
 };
 
@@ -189,6 +191,7 @@ const addLog = (serverId: string, deploymentId: string, log: Omit<DeploymentLog,
     }
     // Persist log in background (best-effort)
     appendLogs(serverId, deploymentId, [newLog]).catch(() => {});
+    publishDeploymentEvent(serverId, deploymentId, { type: 'log', payload: newLog as any });
 };
 
 // Install dependencies for a bot with enhanced commands and retries
