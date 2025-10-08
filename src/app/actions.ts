@@ -195,7 +195,7 @@ const addLog = (serverId: string, deploymentId: string, log: Omit<DeploymentLog,
 };
 
 // Install dependencies for a bot with enhanced commands and retries
-async function installDependencies(botDir: string, serverId: string, deploymentId: string): Promise<void> {
+async function installDependencies(botDir: string, serverId: string, deploymentId: string, parsedPackageJson?: any): Promise<void> {
     // Verify Node version
     addLog(serverId, deploymentId, { stream: 'system', message: 'Checking Node.js version...' });
     await new Promise<void>((resolve, reject) => {
@@ -313,6 +313,9 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     // Clean cache (best-effort)
     if (pm === 'npm') await runCmd('Cleaning npm cache', ['npm', 'cache', 'clean', '--force'], { optional: true });
 
+    // Quick connectivity check
+    await runCmd('Pinging npm registry', [pm, ...(pm === 'yarn' ? ['npm', 'ping'] : ['ping'])], { optional: true, timeoutMs: 30_000 });
+
     // Install with simple, predictable fallbacks
     let installOk = false;
     if (pm === 'npm') {
@@ -338,6 +341,26 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
         if (!installOk) installOk = await runCmd('Installing (pnpm ignore-scripts)', ['pnpm', 'install', '--reporter', 'silent', '--ignore-scripts', '--config.network-timeout=300000', '--config.jobs=1'], { timeoutMs: 5*60*1000 });
         if (!installOk) installOk = await runCmd('Installing from mirror (pnpm)', ['pnpm', 'install', '--reporter', 'silent', '--registry=https://registry.npmmirror.com', '--config.network-timeout=300000', '--config.jobs=1'], { timeoutMs: 6*60*1000 });
         await runCmd('Rebuilding native modules', ['pnpm', 'rebuild', '-r'], { optional: true, timeoutMs: 4*60*1000 });
+    }
+
+    // Progressive per-dependency fallback
+    if (!installOk && parsedPackageJson && parsedPackageJson.dependencies) {
+        const entries: Array<[string, string]> = Object.entries(parsedPackageJson.dependencies);
+        const total = entries.length;
+        let okCount = 0;
+        addLog(serverId, deploymentId, { stream: 'system', message: `Attempting per-dependency installs (${total} deps)...` });
+        for (const [dep, ver] of entries) {
+            const spec = ver && typeof ver === 'string' ? `${dep}@${ver}` : dep;
+            const oneOk = await runCmd(`Installing ${spec}`, ['npm', 'install', '--no-audit', '--no-fund', '--progress=false', '--no-optional', spec], { timeoutMs: 90_000, env: { npm_config_jobs: '1', npm_config_network_timeout: '120000' } });
+            if (!oneOk) {
+                // mirror retry
+                await runCmd(`Installing ${spec} from mirror`, ['npm', 'install', '--no-audit', '--no-fund', '--progress=false', '--registry=https://registry.npmmirror.com', spec], { timeoutMs: 90_000, env: { npm_config_jobs: '1', npm_config_network_timeout: '120000' } });
+            } else {
+                okCount += 1;
+            }
+        }
+        addLog(serverId, deploymentId, { stream: 'system', message: `Per-dependency installs finished: ${okCount}/${total} succeeded` });
+        installOk = okCount > 0; // proceed if at least some deps installed
     }
 
     if (!installOk) {
@@ -1002,7 +1025,7 @@ export async function deployBotAction(
             });
 
             try {
-                await installDependencies(botDir, serverId, deploymentId);
+                await installDependencies(botDir, serverId, deploymentId, parsedPackageJson);
                 addLog(serverId, deploymentId, { 
                     stream: 'system', 
                     message: 'Dependencies installed successfully' 
