@@ -1018,24 +1018,21 @@ export async function deployBotAction(
 
             if (deployment) deployment.parsedPackageJson = parsedPackageJson;
 
-            // Quick dependency check and install
-            addLog(serverId, deploymentId, { 
-                stream: 'system', 
-                message: 'Checking dependencies...' 
-            });
-
-            try {
-                await installDependencies(botDir, serverId, deploymentId, parsedPackageJson);
-                addLog(serverId, deploymentId, { 
-                    stream: 'system', 
-                    message: 'Dependencies installed successfully' 
-                });
-            } catch (depError: any) {
-                addLog(serverId, deploymentId, { 
-                    stream: 'stderr', 
-                    message: `Dependency installation warning: ${depError.message}` 
-                });
-                // Continue anyway - some bots work without dependencies
+            // Quick dependency strategy: skip bulk install in prod and auto-install missing packages on demand.
+            // Allow opting back in by setting PREINSTALL_DEPS=1 in the environment.
+            const preinstallWanted = process.env.PREINSTALL_DEPS === '1';
+            let preinstallAttempted = false;
+            if (preinstallWanted) {
+                addLog(serverId, deploymentId, { stream: 'system', message: 'Preinstalling dependencies (PREINSTALL_DEPS=1)...' });
+                try {
+                    await installDependencies(botDir, serverId, deploymentId, parsedPackageJson);
+                    preinstallAttempted = true;
+                    addLog(serverId, deploymentId, { stream: 'system', message: 'Dependencies installed successfully' });
+                } catch (depError: any) {
+                    addLog(serverId, deploymentId, { stream: 'stderr', message: `Dependency preinstall warning: ${depError.message}` });
+                }
+            } else {
+                addLog(serverId, deploymentId, { stream: 'system', message: 'Skipping bulk install; will auto-install missing modules on demand.' });
             }
 
             // MongoDB analysis (guarded to avoid AI deps when disabled)
@@ -1089,7 +1086,7 @@ export async function deployBotAction(
                 message: 'Starting bot process...' 
             });
 
-            const startResult = await startBotProcess(serverId, deploymentId);
+            let startResult = await startBotProcess(serverId, deploymentId);
             if (startResult.success) {
                 updateState(serverId, deploymentId, prev => ({ 
                     ...prev, 
@@ -1114,7 +1111,33 @@ export async function deployBotAction(
                     console.log('Could not update server status:', error);
                 }
             } else {
-                throw new Error(startResult.error || 'Failed to start bot');
+                // If start failed and we did not preinstall, try a one-time bulk install then retry
+                if (!preinstallAttempted && !preinstallWanted) {
+                    addLog(serverId, deploymentId, { stream: 'system', message: 'Retrying after installing dependencies (on-demand fallback)...' });
+                    try {
+                        await installDependencies(botDir, serverId, deploymentId, parsedPackageJson);
+                        startResult = await startBotProcess(serverId, deploymentId);
+                        if (startResult.success) {
+                            updateState(serverId, deploymentId, prev => ({ 
+                                ...prev, 
+                                status: 'Bot deployed successfully (after fallback install)',
+                                stage: 'running',
+                                isDeploying: false,
+                                error: null
+                            }));
+                            const deployments = getServerDeployments(serverId);
+                            const deployment = deployments.get(deploymentId);
+                            if (deployment) saveDeploymentState(serverId, deploymentId, deployment.state).catch(() => {});
+                            addLog(serverId, deploymentId, { stream: 'system', message: '🎉 Bot deployed and running successfully!' });
+                        } else {
+                            throw new Error(startResult.error || 'Failed to start bot');
+                        }
+                    } catch (e: any) {
+                        throw new Error(e?.message || 'Failed to start bot');
+                    }
+                } else {
+                    throw new Error(startResult.error || 'Failed to start bot');
+                }
             }
 
         } catch (error: any) {
