@@ -316,27 +316,28 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     // Install with simple, predictable fallbacks
     let installOk = false;
     if (pm === 'npm') {
-        // Primary: fast CI install
-        installOk = await runCmd('Installing dependencies (npm ci)', ['npm', 'ci', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 12*60*1000, env: { npm_config_network_timeout: '600000' } });
-        // Legacy peer deps fallback
-        if (!installOk) installOk = await runCmd('Installing with legacy peer deps', ['npm', 'install', '--legacy-peer-deps', '--no-audit', '--no-fund', '--progress=false', '--omit=optional'], { timeoutMs: 12*60*1000, env: { npm_config_network_timeout: '600000' } });
-        // No-optional fallback
-        if (!installOk) installOk = await runCmd('Installing (reduced, no-optional)', ['npm', 'install', '--no-optional', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 12*60*1000, env: { npm_config_network_timeout: '600000' } });
-        // Registry mirror fallback (npmjs mirror)
-        if (!installOk) installOk = await runCmd('Installing from mirror (npm)', ['npm', 'install', '--no-audit', '--no-fund', '--progress=false', '--registry=https://registry.npmmirror.com'], { timeoutMs: 12*60*1000, env: { npm_config_network_timeout: '600000' } });
-        await runCmd('Rebuilding native modules', ['npm', 'rebuild'], { optional: true, timeoutMs: 6*60*1000 });
+        // Prefer reduced install first to avoid optional heavy deps hanging
+        installOk = await runCmd('Installing (npm --no-optional)', ['npm', 'install', '--no-optional', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 6*60*1000, env: { npm_config_network_timeout: '300000', npm_config_jobs: '1' } });
+        // Legacy peer deps as second try
+        if (!installOk) installOk = await runCmd('Installing (legacy peer deps)', ['npm', 'install', '--legacy-peer-deps', '--no-audit', '--no-fund', '--progress=false', '--omit=optional'], { timeoutMs: 6*60*1000, env: { npm_config_network_timeout: '300000', npm_config_jobs: '1' } });
+        // Ignore scripts to skip long postinstalls
+        if (!installOk) installOk = await runCmd('Installing (ignore-scripts)', ['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 5*60*1000, env: { npm_config_network_timeout: '300000', npm_config_jobs: '1' } });
+        // Mirror registry fallback
+        if (!installOk) installOk = await runCmd('Installing from mirror (npm)', ['npm', 'install', '--no-audit', '--no-fund', '--progress=false', '--registry=https://registry.npmmirror.com'], { timeoutMs: 6*60*1000, env: { npm_config_network_timeout: '300000', npm_config_jobs: '1' } });
+        // Last resort: ci (short window)
+        if (!installOk) installOk = await runCmd('Installing (npm ci, last resort)', ['npm', 'ci', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 3*60*1000, env: { npm_config_network_timeout: '180000', npm_config_jobs: '1' } });
+        await runCmd('Rebuilding native modules', ['npm', 'rebuild'], { optional: true, timeoutMs: 4*60*1000 });
     } else if (pm === 'yarn') {
-        installOk = await runCmd('Installing dependencies (yarn)', ['yarn', 'install', '--frozen-lockfile', '--check-files', '--non-interactive', '--network-timeout', '600000'], { timeoutMs: 12*60*1000 });
-        if (!installOk) installOk = await runCmd('Installing (yarn fallback)', ['yarn', 'install', '--check-files', '--non-interactive', '--network-timeout', '600000'], { timeoutMs: 12*60*1000 });
-        // Yarn mirror (cnpm mirror URL works for npm; for yarn, we can set env npm_config_registry)
-        if (!installOk) installOk = await runCmd('Installing from mirror (yarn)', ['yarn', 'install', '--check-files', '--non-interactive', '--network-timeout', '600000'], { timeoutMs: 12*60*1000, env: { npm_config_registry: 'https://registry.npmmirror.com' } });
-        await runCmd('Rebuilding native modules', ['yarn', 'rebuild'], { optional: true, timeoutMs: 6*60*1000 });
+        installOk = await runCmd('Installing (yarn, no optional)', ['yarn', 'install', '--frozen-lockfile', '--check-files', '--non-interactive', '--network-timeout', '300000'], { timeoutMs: 6*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing (yarn fallback)', ['yarn', 'install', '--check-files', '--non-interactive', '--network-timeout', '300000', '--ignore-scripts'], { timeoutMs: 5*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing from mirror (yarn)', ['yarn', 'install', '--check-files', '--non-interactive', '--network-timeout', '300000'], { timeoutMs: 6*60*1000, env: { npm_config_registry: 'https://registry.npmmirror.com' } });
+        await runCmd('Rebuilding native modules', ['yarn', 'rebuild'], { optional: true, timeoutMs: 4*60*1000 });
     } else {
         // pnpm
-        installOk = await runCmd('Installing dependencies (pnpm)', ['pnpm', 'install', '--frozen-lockfile', '--reporter', 'silent'], { timeoutMs: 12*60*1000 });
-        if (!installOk) installOk = await runCmd('Installing (pnpm no-optional)', ['pnpm', 'install', '--no-optional', '--reporter', 'silent'], { timeoutMs: 12*60*1000 });
-        if (!installOk) installOk = await runCmd('Installing from mirror (pnpm)', ['pnpm', 'install', '--reporter', 'silent', '--registry=https://registry.npmmirror.com'], { timeoutMs: 12*60*1000 });
-        await runCmd('Rebuilding native modules', ['pnpm', 'rebuild', '-r'], { optional: true, timeoutMs: 6*60*1000 });
+        installOk = await runCmd('Installing (pnpm --no-optional)', ['pnpm', 'install', '--frozen-lockfile', '--reporter', 'silent', '--config.network-timeout=300000', '--config.jobs=1'], { timeoutMs: 6*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing (pnpm ignore-scripts)', ['pnpm', 'install', '--reporter', 'silent', '--ignore-scripts', '--config.network-timeout=300000', '--config.jobs=1'], { timeoutMs: 5*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing from mirror (pnpm)', ['pnpm', 'install', '--reporter', 'silent', '--registry=https://registry.npmmirror.com', '--config.network-timeout=300000', '--config.jobs=1'], { timeoutMs: 6*60*1000 });
+        await runCmd('Rebuilding native modules', ['pnpm', 'rebuild', '-r'], { optional: true, timeoutMs: 4*60*1000 });
     }
 
     if (!installOk) {
