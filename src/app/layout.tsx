@@ -5,6 +5,8 @@ import { Footer } from '@/components/layout/Footer';
 
 import './globals.css';
 
+export const runtime = 'nodejs';
+
 export const metadata = {
   title: 'WhatsApp bot site hosting',
   description: 'Host and manage your WhatsApp bots with ease',

@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '128mb',
+    },
+  },
   typescript: {
     // Re-enable build errors by default; allow opt-out for constrained hosts
     ignoreBuildErrors: process.env.DISABLE_BUILD_CHECKS === '1',

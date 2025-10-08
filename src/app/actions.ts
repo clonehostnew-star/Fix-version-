@@ -9,6 +9,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import { randomUUID } from 'crypto';
 import net from 'net';
 import { saveDeploymentState, appendLogs, loadDeploymentState, loadLatestDeploymentForServer, clearLogs, deleteDeployment } from '@/lib/persistence';
+import { publishDeploymentEvent } from '@/lib/eventBus';
 
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
@@ -168,6 +169,7 @@ const updateState = (serverId: string, deploymentId: string, updater: (prevState
     const deployment = deployments.get(deploymentId);
     if (deployment) {
         deployment.state = updater(deployment.state);
+        publishDeploymentEvent(serverId, deploymentId, { type: 'state', payload: deployment.state as any });
     }
 };
 
@@ -189,10 +191,11 @@ const addLog = (serverId: string, deploymentId: string, log: Omit<DeploymentLog,
     }
     // Persist log in background (best-effort)
     appendLogs(serverId, deploymentId, [newLog]).catch(() => {});
+    publishDeploymentEvent(serverId, deploymentId, { type: 'log', payload: newLog as any });
 };
 
 // Install dependencies for a bot with enhanced commands and retries
-async function installDependencies(botDir: string, serverId: string, deploymentId: string): Promise<void> {
+async function installDependencies(botDir: string, serverId: string, deploymentId: string, parsedPackageJson?: any): Promise<void> {
     // Verify Node version
     addLog(serverId, deploymentId, { stream: 'system', message: 'Checking Node.js version...' });
     await new Promise<void>((resolve, reject) => {
@@ -242,27 +245,54 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     const usePnpm = !useYarn && await fs.pathExists(path.join(botDir, 'pnpm-lock.yaml'));
     const pm = useYarn ? 'yarn' : usePnpm ? 'pnpm' : 'npm';
 
-    // Helper to run a command and log output
-    async function runCmd(desc: string, argv: string[], opts?: { optional?: boolean }): Promise<boolean> {
+    // Helper to run a command with timeout and heartbeats to avoid hanging
+    async function runCmd(
+        desc: string,
+        argv: string[],
+        opts?: { optional?: boolean; timeoutMs?: number; env?: Record<string, string> }
+    ): Promise<boolean> {
         return await new Promise<boolean>((resolve) => {
             addLog(serverId, deploymentId, { stream: 'system', message: `${desc}...` });
+            const timeoutMs = opts?.timeoutMs ?? 8 * 60 * 1000; // default 8 minutes
             const proc = spawn(argv[0], argv.slice(1), {
                 cwd: botDir,
                 shell: true,
                 stdio: 'pipe',
                 env: {
                     ...process.env,
+                    npm_config_production: 'false',
                     CI: '1',
                     npm_config_loglevel: 'error',
-                    npm_config_timeout: '600000',
+                    npm_config_timeout: String(timeoutMs),
                     npm_config_fetch_retries: '5',
                     npm_config_fetch_retry_maxtimeout: '120000',
                     npm_config_fetch_retry_mintimeout: '20000',
+                    npm_config_audit: 'false',
+                    npm_config_fund: 'false',
+                    npm_config_progress: 'false',
+                    npm_config_foreground_scripts: 'true',
+                    npm_config_unsafe_perm: 'true',
+                    ...(opts?.env || {}),
                 },
             });
+
+            const heartbeat = setInterval(() => {
+                addLog(serverId, deploymentId, { stream: 'system', message: `${desc} is still running...` });
+            }, 15000);
+
+            const killer = setTimeout(() => {
+                try {
+                    addLog(serverId, deploymentId, { stream: 'stderr', message: `${desc} timed out after ${(timeoutMs/60000).toFixed(1)}m; terminating...` });
+                    proc.kill('SIGTERM');
+                    setTimeout(() => proc.kill('SIGKILL'), 1500);
+                } catch {}
+            }, timeoutMs + 5000);
+
             proc.stdout?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stdout', message: d.toString() }));
             proc.stderr?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stderr', message: d.toString() }));
             proc.on('close', (code) => {
+                clearInterval(heartbeat);
+                clearTimeout(killer);
                 if (code === 0) {
                     addLog(serverId, deploymentId, { stream: 'system', message: `${desc} completed successfully` });
                     resolve(true);
@@ -272,6 +302,8 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
                 }
             });
             proc.on('error', (err) => {
+                clearInterval(heartbeat);
+                clearTimeout(killer);
                 addLog(serverId, deploymentId, { stream: 'stderr', message: `${desc} error: ${err.message}` });
                 resolve(!!opts?.optional);
             });
@@ -281,19 +313,54 @@ async function installDependencies(botDir: string, serverId: string, deploymentI
     // Clean cache (best-effort)
     if (pm === 'npm') await runCmd('Cleaning npm cache', ['npm', 'cache', 'clean', '--force'], { optional: true });
 
+    // Quick connectivity check
+    await runCmd('Pinging npm registry', [pm, ...(pm === 'yarn' ? ['npm', 'ping'] : ['ping'])], { optional: true, timeoutMs: 30_000 });
+
     // Install with simple, predictable fallbacks
     let installOk = false;
     if (pm === 'npm') {
-        installOk = await runCmd('Installing dependencies (npm ci)', ['npm', 'ci']);
-        if (!installOk) installOk = await runCmd('Installing with legacy peer deps', ['npm', 'install', '--legacy-peer-deps']);
-        await runCmd('Rebuilding native modules', ['npm', 'rebuild'], { optional: true });
+        // Prefer reduced install first to avoid optional heavy deps hanging
+        installOk = await runCmd('Installing (npm --no-optional)', ['npm', 'install', '--no-optional', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 6*60*1000, env: { npm_config_network_timeout: '300000', npm_config_jobs: '1' } });
+        // Legacy peer deps as second try
+        if (!installOk) installOk = await runCmd('Installing (legacy peer deps)', ['npm', 'install', '--legacy-peer-deps', '--no-audit', '--no-fund', '--progress=false', '--omit=optional'], { timeoutMs: 6*60*1000, env: { npm_config_network_timeout: '300000', npm_config_jobs: '1' } });
+        // Ignore scripts to skip long postinstalls
+        if (!installOk) installOk = await runCmd('Installing (ignore-scripts)', ['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 5*60*1000, env: { npm_config_network_timeout: '300000', npm_config_jobs: '1' } });
+        // Mirror registry fallback
+        if (!installOk) installOk = await runCmd('Installing from mirror (npm)', ['npm', 'install', '--no-audit', '--no-fund', '--progress=false', '--registry=https://registry.npmmirror.com'], { timeoutMs: 6*60*1000, env: { npm_config_network_timeout: '300000', npm_config_jobs: '1' } });
+        // Last resort: ci (short window)
+        if (!installOk) installOk = await runCmd('Installing (npm ci, last resort)', ['npm', 'ci', '--no-audit', '--no-fund', '--progress=false'], { timeoutMs: 3*60*1000, env: { npm_config_network_timeout: '180000', npm_config_jobs: '1' } });
+        await runCmd('Rebuilding native modules', ['npm', 'rebuild'], { optional: true, timeoutMs: 4*60*1000 });
     } else if (pm === 'yarn') {
-        installOk = await runCmd('Installing dependencies (yarn)', ['yarn', 'install', '--frozen-lockfile', '--check-files']);
-        await runCmd('Rebuilding native modules', ['yarn', 'rebuild'], { optional: true });
+        installOk = await runCmd('Installing (yarn, no optional)', ['yarn', 'install', '--frozen-lockfile', '--check-files', '--non-interactive', '--network-timeout', '300000'], { timeoutMs: 6*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing (yarn fallback)', ['yarn', 'install', '--check-files', '--non-interactive', '--network-timeout', '300000', '--ignore-scripts'], { timeoutMs: 5*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing from mirror (yarn)', ['yarn', 'install', '--check-files', '--non-interactive', '--network-timeout', '300000'], { timeoutMs: 6*60*1000, env: { npm_config_registry: 'https://registry.npmmirror.com' } });
+        await runCmd('Rebuilding native modules', ['yarn', 'rebuild'], { optional: true, timeoutMs: 4*60*1000 });
     } else {
         // pnpm
-        installOk = await runCmd('Installing dependencies (pnpm)', ['pnpm', 'install', '--frozen-lockfile']);
-        await runCmd('Rebuilding native modules', ['pnpm', 'rebuild', '-r'], { optional: true });
+        installOk = await runCmd('Installing (pnpm --no-optional)', ['pnpm', 'install', '--frozen-lockfile', '--reporter', 'silent', '--config.network-timeout=300000', '--config.jobs=1'], { timeoutMs: 6*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing (pnpm ignore-scripts)', ['pnpm', 'install', '--reporter', 'silent', '--ignore-scripts', '--config.network-timeout=300000', '--config.jobs=1'], { timeoutMs: 5*60*1000 });
+        if (!installOk) installOk = await runCmd('Installing from mirror (pnpm)', ['pnpm', 'install', '--reporter', 'silent', '--registry=https://registry.npmmirror.com', '--config.network-timeout=300000', '--config.jobs=1'], { timeoutMs: 6*60*1000 });
+        await runCmd('Rebuilding native modules', ['pnpm', 'rebuild', '-r'], { optional: true, timeoutMs: 4*60*1000 });
+    }
+
+    // Progressive per-dependency fallback
+    if (!installOk && parsedPackageJson && parsedPackageJson.dependencies) {
+        const entries: Array<[string, string]> = Object.entries(parsedPackageJson.dependencies);
+        const total = entries.length;
+        let okCount = 0;
+        addLog(serverId, deploymentId, { stream: 'system', message: `Attempting per-dependency installs (${total} deps)...` });
+        for (const [dep, ver] of entries) {
+            const spec = ver && typeof ver === 'string' ? `${dep}@${ver}` : dep;
+            const oneOk = await runCmd(`Installing ${spec}`, ['npm', 'install', '--no-audit', '--no-fund', '--progress=false', '--no-optional', spec], { timeoutMs: 90_000, env: { npm_config_jobs: '1', npm_config_network_timeout: '120000' } });
+            if (!oneOk) {
+                // mirror retry
+                await runCmd(`Installing ${spec} from mirror`, ['npm', 'install', '--no-audit', '--no-fund', '--progress=false', '--registry=https://registry.npmmirror.com', spec], { timeoutMs: 90_000, env: { npm_config_jobs: '1', npm_config_network_timeout: '120000' } });
+            } else {
+                okCount += 1;
+            }
+        }
+        addLog(serverId, deploymentId, { stream: 'system', message: `Per-dependency installs finished: ${okCount}/${total} succeeded` });
+        installOk = okCount > 0; // proceed if at least some deps installed
     }
 
     if (!installOk) {
@@ -369,29 +436,133 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
             addLog(serverId, deploymentId, { stream: 'system', message: 'MONGODB_URI set for bot process.' });
         }
 
-        const npmStart = spawn('npm', ['start'], { 
-            cwd: deployment.botDir, 
-            env: botEnv, 
-            shell: true, 
-            stdio: 'pipe' 
+        // Fallback-aware launcher: try `npm start`, fall back to `node <entry>` if npm is unavailable
+        let attemptedFallback = false;
+        let sawNpmNotFound = false;
+
+        const startNodeFallback = async () => {
+            if (attemptedFallback) return;
+            attemptedFallback = true;
+            try {
+                // Determine entry point from parsed package.json or common candidates
+                const candidates = ['index.js', 'app.js', 'main.js', 'bot.js', 'start.js'];
+                let entryPoint = (deployment.parsedPackageJson?.main as string) || '';
+                if (!entryPoint || !(await fs.pathExists(path.join(deployment.botDir!, entryPoint)))) {
+                    entryPoint = '';
+                    for (const c of candidates) {
+                        if (await fs.pathExists(path.join(deployment.botDir!, c))) { entryPoint = c; break; }
+                    }
+                }
+                if (!entryPoint) {
+                    throw new Error('Could not determine bot entry point for fallback.');
+                }
+                addLog(serverId, deploymentId, { stream: 'system', message: `Falling back to direct node start: node ${entryPoint}` });
+                const nodeProc = spawn('node', [entryPoint], {
+                    cwd: deployment.botDir!,
+                    env: botEnv,
+                    shell: true,
+                    stdio: 'pipe',
+                });
+
+                deployment.process = nodeProc;
+
+                nodeProc.stdout?.on('data', (data) =>
+                    addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() })
+                );
+                nodeProc.stderr?.on('data', (data) => {
+                    const message = data.toString();
+                    addLog(serverId, deploymentId, { stream: 'stderr', message });
+                });
+                nodeProc.on('spawn', () => {
+                    updateState(serverId, deploymentId, prev => ({
+                        ...prev,
+                        status: 'Bot process started successfully (node fallback).',
+                        stage: 'running'
+                    }));
+                    const localDeployments = getServerDeployments(serverId);
+                    const localDeployment = localDeployments.get(deploymentId);
+                    if (localDeployment) saveDeploymentState(serverId, deploymentId, localDeployment.state).catch(() => {});
+                });
+                nodeProc.on('close', (code) => {
+                    const localDeployments = getServerDeployments(serverId);
+                    const localDeployment = localDeployments.get(deploymentId);
+                    if (localDeployment) {
+                        localDeployment.process = null;
+                    }
+                    if (code !== 0 && code !== null) {
+                        updateState(serverId, deploymentId, prev => ({ ...prev,
+                            error: `Bot process exited with code ${code}.`,
+                            status: `Bot process exited unexpectedly (code ${code}).`,
+                            stage: 'error',
+                            isDeploying: false
+                        }));
+                    } else if (code === 0) {
+                        updateState(serverId, deploymentId, prev => ({ ...prev,
+                            status: 'Bot process exited cleanly.',
+                            stage: 'finished',
+                            isDeploying: false
+                        }));
+                    } else {
+                        updateState(serverId, deploymentId, prev => ({ ...prev,
+                            status: 'Bot process stopped.',
+                            stage: 'finished',
+                            isDeploying: false
+                        }));
+                    }
+                    const ld2 = getServerDeployments(serverId).get(deploymentId);
+                    if (ld2) saveDeploymentState(serverId, deploymentId, ld2.state).catch(() => {});
+                });
+                nodeProc.on('error', (err) => {
+                    const localDeployments = getServerDeployments(serverId);
+                    const localDeployment = localDeployments.get(deploymentId);
+                    if (localDeployment) {
+                        localDeployment.process = null;
+                    }
+                    updateState(serverId, deploymentId, prev => ({ ...prev,
+                        error: `Failed to start bot with node: ${err.message}`,
+                        status: 'Failed to start bot.',
+                        stage: 'error',
+                        isDeploying: false
+                    }));
+                });
+            } catch (e: any) {
+                updateState(serverId, deploymentId, prev => ({ ...prev,
+                    error: e?.message || 'Failed to start bot (fallback).',
+                    status: 'Failed to start bot.',
+                    stage: 'error',
+                    isDeploying: false
+                }));
+            }
+        };
+
+        const npmStart = spawn('npm', ['start'], {
+            cwd: deployment.botDir,
+            env: botEnv,
+            shell: true,
+            stdio: 'pipe'
         });
 
         deployment.process = npmStart;
         deployment.autoRestart = true;
         deployment.restartAttempts = 0;
 
-        npmStart.stdout?.on('data', (data) => 
-            addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() }));
+        npmStart.stdout?.on('data', (data) =>
+            addLog(serverId, deploymentId, { stream: 'stdout', message: data.toString() })
+        );
 
         npmStart.stderr?.on('data', async (data) => {
             const message = data.toString();
+            // Detect environments where npm is unavailable
+            if (/npm(\s*:\s*not\s*found)|command\s+not\s+found\s*:.*npm/i.test(message)) {
+                sawNpmNotFound = true;
+            }
             // Handle missing module errors
             if (message.includes('Cannot find module')) {
                 const missingModule = message.match(/Cannot find module '([^']+)'/)?.[1];
                 if (missingModule) {
-                    addLog(serverId, deploymentId, { 
-                        stream: 'stderr', 
-                        message: `CRITICAL: Missing required module: ${missingModule}` 
+                    addLog(serverId, deploymentId, {
+                        stream: 'stderr',
+                        message: `CRITICAL: Missing required module: ${missingModule}`
                     });
                     const deployments = getServerDeployments(serverId);
                     const deployment = deployments.get(deploymentId);
@@ -402,7 +573,7 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
                                 const proc = spawn('npm', ['install', `${missingModule}`], { cwd: deployment.botDir!, shell: true, stdio: 'pipe' });
                                 proc.stdout?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stdout', message: d.toString() }));
                                 proc.stderr?.on('data', (d) => addLog(serverId, deploymentId, { stream: 'stderr', message: d.toString() }));
-                                proc.on('close', (code) => resolve());
+                                proc.on('close', () => resolve());
                                 proc.on('error', () => resolve());
                             });
                             addLog(serverId, deploymentId, { stream: 'system', message: `Auto-install completed. Restarting bot...` });
@@ -427,19 +598,19 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
             }
             // Handle port conflicts
             else if (message.includes('EADDRINUSE')) {
-                addLog(serverId, deploymentId, { 
-                    stream: 'stderr', 
-                    message: `Port conflict detected. Trying to resolve automatically...` 
+                addLog(serverId, deploymentId, {
+                    stream: 'stderr',
+                    message: `Port conflict detected. Trying to resolve automatically...`
                 });
             }
             addLog(serverId, deploymentId, { stream: 'stderr', message });
         });
 
         npmStart.on('spawn', () => {
-            updateState(serverId, deploymentId, prev => ({ 
-                ...prev, 
-                status: 'Bot process started successfully.', 
-                stage: 'running' 
+            updateState(serverId, deploymentId, prev => ({
+                ...prev,
+                status: 'Bot process started successfully.',
+                stage: 'running'
             }));
             // Persist when process starts
             const localDeployments = getServerDeployments(serverId);
@@ -447,29 +618,41 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
             if (localDeployment) saveDeploymentState(serverId, deploymentId, localDeployment.state).catch(() => {});
         });
 
-        npmStart.on('close', (code) => {
+        npmStart.on('close', async (code) => {
+            // If npm is unavailable, fallback to node
+            if (!attemptedFallback && (code === 127 || sawNpmNotFound)) {
+                addLog(serverId, deploymentId, { stream: 'system', message: 'npm not available in production runtime; falling back to node.' });
+                return startNodeFallback();
+            }
+
+            // If npm start exited with error, try node fallback once
+            if (!attemptedFallback && code && code !== 0) {
+                addLog(serverId, deploymentId, { stream: 'system', message: `npm start exited with code ${code}. Trying node fallback...` });
+                return startNodeFallback();
+            }
+
             const localDeployments = getServerDeployments(serverId);
             const localDeployment = localDeployments.get(deploymentId);
             if (localDeployment) {
                 localDeployment.process = null;
             }
             if (code !== 0 && code !== null) {
-                updateState(serverId, deploymentId, prev => ({...prev, 
-                    error: `Bot process exited with code ${code}.`, 
-                    status: `Bot process exited unexpectedly (code ${code}).`, 
-                    stage: 'error', 
+                updateState(serverId, deploymentId, prev => ({...prev,
+                    error: `Bot process exited with code ${code}.`,
+                    status: `Bot process exited unexpectedly (code ${code}).`,
+                    stage: 'error',
                     isDeploying: false
                 }));
             } else if (code === 0) {
-                updateState(serverId, deploymentId, prev => ({...prev, 
-                    status: 'Bot process exited cleanly.', 
-                    stage: 'finished', 
+                updateState(serverId, deploymentId, prev => ({...prev,
+                    status: 'Bot process exited cleanly.',
+                    stage: 'finished',
                     isDeploying: false
                 }));
             } else {
-                updateState(serverId, deploymentId, prev => ({...prev, 
-                    status: 'Bot process stopped.', 
-                    stage: 'finished', 
+                updateState(serverId, deploymentId, prev => ({...prev,
+                    status: 'Bot process stopped.',
+                    stage: 'finished',
                     isDeploying: false
                 }));
             }
@@ -477,15 +660,20 @@ async function startBotProcess(serverId: string, deploymentId: string): Promise<
             if (ld2) saveDeploymentState(serverId, deploymentId, ld2.state).catch(() => {});
         });
         
-        npmStart.on('error', (err) => {
+        npmStart.on('error', async (err) => {
+            // ENOENT typically means npm is not installed/available
+            if (!attemptedFallback && (err as any)?.code === 'ENOENT') {
+                addLog(serverId, deploymentId, { stream: 'system', message: 'npm command not found; using node fallback.' });
+                return startNodeFallback();
+            }
             if (deployment) {
                 deployment.process = null;
             }
-            updateState(serverId, deploymentId, prev => ({...prev, 
-                error: `Failed to start bot process: ${err.message}`, 
-                status: 'Failed to start bot.', 
-                stage: 'error', 
-                isDeploying: false 
+            updateState(serverId, deploymentId, prev => ({...prev,
+                error: `Failed to start bot process: ${err.message}`,
+                status: 'Failed to start bot.',
+                stage: 'error',
+                isDeploying: false
             }));
         });
 
@@ -679,15 +867,70 @@ export async function deployBotAction(
 
             addLog(serverId, deploymentId, { 
                 stream: 'system', 
-                message: 'Extracting bot files...' 
+                message: 'Extracting bot files (robust mode)...' 
             });
 
-            // Extract zip file
-            const zip = new AdmZip(Buffer.from(await file.arrayBuffer()));
-            zip.extractAllTo(botDir, true);
+            // Write uploaded buffer to a temp .zip and extract from disk (more reliable in prod)
+            const uploadBuffer = Buffer.from(await file.arrayBuffer());
+            const zipPath = path.join(os.tmpdir(), `upload-${deploymentId}.zip`);
+            await fs.writeFile(zipPath, uploadBuffer);
+            addLog(serverId, deploymentId, { stream: 'system', message: `ZIP received: ${(uploadBuffer.byteLength/1024/1024).toFixed(2)} MB` });
+
+            try {
+                const zip = new AdmZip(zipPath);
+                const entries = zip.getEntries() || [];
+                addLog(serverId, deploymentId, { stream: 'system', message: `ZIP entries detected: ${entries.length}` });
+                zip.extractAllTo(botDir, true);
+            } catch (e: any) {
+                addLog(serverId, deploymentId, { stream: 'stderr', message: `Primary extraction failed: ${e?.message || e}` });
+                throw e;
+            } finally {
+                // Best-effort cleanup of temp zip
+                await fs.remove(zipPath).catch(() => {});
+            }
+
+            // Normalize extraction root: many ZIPs contain a single top-level folder
+            const findPackageJsonRoot = async (dir: string): Promise<string> => {
+                const directPkg = await fs.pathExists(path.join(dir, 'package.json'));
+                if (directPkg) return dir;
+                const children = await fs.readdir(dir);
+                const visible = children.filter((n) => n !== '__MACOSX' && !n.startsWith('.'));
+                // Prefer a child containing package.json
+                for (const name of visible) {
+                    const childPath = path.join(dir, name);
+                    try {
+                        const st = await fs.stat(childPath);
+                        if (st.isDirectory()) {
+                            if (await fs.pathExists(path.join(childPath, 'package.json'))) {
+                                return childPath;
+                            }
+                        }
+                    } catch {}
+                }
+                // If only one visible directory, assume that's the root
+                const dirCandidates: string[] = [];
+                for (const name of visible) {
+                    const childPath = path.join(dir, name);
+                    try {
+                        const st = await fs.stat(childPath);
+                        if (st.isDirectory()) dirCandidates.push(childPath);
+                    } catch {}
+                }
+                if (dirCandidates.length === 1) return dirCandidates[0];
+                return dir; // fallback: keep original
+            }
+
+            const normalizedRoot = await findPackageJsonRoot(botDir);
+            if (normalizedRoot !== botDir) {
+                addLog(serverId, deploymentId, { stream: 'system', message: `Normalized ZIP root: ${path.basename(normalizedRoot)}` });
+                const deployments2 = getServerDeployments(serverId);
+                const dep2 = deployments2.get(deploymentId);
+                if (dep2) dep2.botDir = normalizedRoot;
+            }
 
             // List extracted files
-            const files = await fs.readdir(botDir);
+            const listRoot = (normalizedRoot !== botDir) ? normalizedRoot : botDir;
+            const files = await fs.readdir(listRoot);
             updateState(serverId, deploymentId, prev => ({ 
                 ...prev, 
                 details: { ...prev.details, fileList: files } 
@@ -775,24 +1018,21 @@ export async function deployBotAction(
 
             if (deployment) deployment.parsedPackageJson = parsedPackageJson;
 
-            // Quick dependency check and install
-            addLog(serverId, deploymentId, { 
-                stream: 'system', 
-                message: 'Checking dependencies...' 
-            });
-
-            try {
-                await installDependencies(botDir, serverId, deploymentId);
-                addLog(serverId, deploymentId, { 
-                    stream: 'system', 
-                    message: 'Dependencies installed successfully' 
-                });
-            } catch (depError: any) {
-                addLog(serverId, deploymentId, { 
-                    stream: 'stderr', 
-                    message: `Dependency installation warning: ${depError.message}` 
-                });
-                // Continue anyway - some bots work without dependencies
+            // Quick dependency strategy: skip bulk install in prod and auto-install missing packages on demand.
+            // Allow opting back in by setting PREINSTALL_DEPS=1 in the environment.
+            const preinstallWanted = process.env.PREINSTALL_DEPS === '1';
+            let preinstallAttempted = false;
+            if (preinstallWanted) {
+                addLog(serverId, deploymentId, { stream: 'system', message: 'Preinstalling dependencies (PREINSTALL_DEPS=1)...' });
+                try {
+                    await installDependencies(botDir, serverId, deploymentId, parsedPackageJson);
+                    preinstallAttempted = true;
+                    addLog(serverId, deploymentId, { stream: 'system', message: 'Dependencies installed successfully' });
+                } catch (depError: any) {
+                    addLog(serverId, deploymentId, { stream: 'stderr', message: `Dependency preinstall warning: ${depError.message}` });
+                }
+            } else {
+                addLog(serverId, deploymentId, { stream: 'system', message: 'Skipping bulk install; will auto-install missing modules on demand.' });
             }
 
             // MongoDB analysis (guarded to avoid AI deps when disabled)
@@ -846,7 +1086,7 @@ export async function deployBotAction(
                 message: 'Starting bot process...' 
             });
 
-            const startResult = await startBotProcess(serverId, deploymentId);
+            let startResult = await startBotProcess(serverId, deploymentId);
             if (startResult.success) {
                 updateState(serverId, deploymentId, prev => ({ 
                     ...prev, 
@@ -871,7 +1111,33 @@ export async function deployBotAction(
                     console.log('Could not update server status:', error);
                 }
             } else {
-                throw new Error(startResult.error || 'Failed to start bot');
+                // If start failed and we did not preinstall, try a one-time bulk install then retry
+                if (!preinstallAttempted && !preinstallWanted) {
+                    addLog(serverId, deploymentId, { stream: 'system', message: 'Retrying after installing dependencies (on-demand fallback)...' });
+                    try {
+                        await installDependencies(botDir, serverId, deploymentId, parsedPackageJson);
+                        startResult = await startBotProcess(serverId, deploymentId);
+                        if (startResult.success) {
+                            updateState(serverId, deploymentId, prev => ({ 
+                                ...prev, 
+                                status: 'Bot deployed successfully (after fallback install)',
+                                stage: 'running',
+                                isDeploying: false,
+                                error: null
+                            }));
+                            const deployments = getServerDeployments(serverId);
+                            const deployment = deployments.get(deploymentId);
+                            if (deployment) saveDeploymentState(serverId, deploymentId, deployment.state).catch(() => {});
+                            addLog(serverId, deploymentId, { stream: 'system', message: '🎉 Bot deployed and running successfully!' });
+                        } else {
+                            throw new Error(startResult.error || 'Failed to start bot');
+                        }
+                    } catch (e: any) {
+                        throw new Error(e?.message || 'Failed to start bot');
+                    }
+                } else {
+                    throw new Error(startResult.error || 'Failed to start bot');
+                }
             }
 
         } catch (error: any) {
